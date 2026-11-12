@@ -354,6 +354,11 @@ class Params:
     def product_range(self, relaxed: bool = False) -> tuple[int, int]:
         return self.product_min, self.product_max + (50 if relaxed else 0)
 
+    def flank_for(self, relaxed: bool = False) -> int:
+        """How far primers may reach beyond the exon: 50 bp more when relaxed,
+        for short exons between AT-rich introns."""
+        return self.flank + (50 if relaxed else 0)
+
 
 @dataclass
 class Exon:
@@ -700,7 +705,7 @@ def design_target(m: GeneModel, t: Target, p: Params) -> dict:
         pmin, pmax = p.product_range(relaxed)
         smax = g["PRIMER_MAX_SIZE"]
         for tier in tiers:
-            for placement, extra in (("exonic", 0), ("spanning", p.flank)):
+            for placement, extra in (("exonic", 0), ("spanning", p.flank_for(relaxed))):
                 w0 = max(0, t.elo - extra)
                 w1 = min(len(m.seq) - 1, t.ehi + extra)
                 if w1 - w0 + 1 < pmin:
@@ -1148,7 +1153,8 @@ MEANING = {
     "dntp": "Total dNTP for the Tm calculation (mM)",
     "dna_conc": "Annealing oligo concentration for the Tm calculation (nM)",
     "num_return": "Pairs kept per target (best + alternatives)",
-    "relax": "If no pair is found, retry once with relaxed settings (Tm ±1 °C, 3' G/C ≤ 3, product ≤ 200 bp) - flagged",
+    "relax": "If no pair is found, retry once with relaxed settings (Tm ±1 °C, 3' G/C ≤ 3, product ≤ 200 bp, "
+             "primers up to flank + 50 bp into the intron) - flagged",
     "snp_maf": f"SNPs from UCSC {SNP_TRACK} at or above this MAF are avoided under primers",
     "snp_3prime": "A SNP is never accepted within this many bases of a primer's 3' end",
     "fallback": "Allow tiers repeat-5p and snp-5p when no clean pair exists (always flagged)",
@@ -1262,7 +1268,7 @@ def main(argv=None, ensembl=None, ucsc=None):
     ens = ensembl or Ensembl(a.assembly, a.cache or None)
     if ucsc is None and not a.no_ucsc:
         ucsc = UCSC(a.assembly, a.cache or None, a.ucsc_delay)
-    pad = p.flank + 20
+    pad = p.flank_for(True) + 20
     genes = read_gene_list(a.genes) if a.genes else []
     results, errors = [], []
 

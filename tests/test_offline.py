@@ -110,14 +110,14 @@ def quiet(*_):
 
 def run(sym, p=None, ucsc=None):
     p = p or qpb.Params()
-    m = qpb.build_model(FakeEnsembl(), sym, None, p.flank + 20)
+    m = qpb.build_model(FakeEnsembl(), sym, None, p.flank_for(True) + 20)
     qpb.annotate(m, ucsc if ucsc is not None else FakeUCSC(), p, log=quiet)
     return m, qpb.design_gene(m, p, "GRCh38")
 
 
 def run_region(name, chrom, a, b, p=None, ucsc=None):
     p = p or qpb.Params()
-    m = qpb.region_model(name, chrom, a, b, p.flank + 20)
+    m = qpb.region_model(name, chrom, a, b, p.flank_for(True) + 20)
     m.seq = FakeEnsembl().sequence(chrom, m.region_start, m.region_end, 1)
     qpb.annotate(m, ucsc if ucsc is not None else FakeUCSC(), p, log=quiet)
     return m, qpb.design_gene(m, p, "GRCh38")
@@ -151,7 +151,8 @@ def check_pair(m, g, a, b, p):
     e = exon_of(g, a)
     inside = b["start"] >= e["start"] and b["end"] <= e["end"]
     assert b["placement"] == ("exonic" if inside else "spanning")
-    assert b["start"] >= e["start"] - p.flank and b["end"] <= e["end"] + p.flank
+    fl = p.flank_for(a["relaxed"])
+    assert b["start"] >= e["start"] - fl and b["end"] <= e["end"] + fl
     if a["relaxed"]:
         return
     # the Primer Express rules

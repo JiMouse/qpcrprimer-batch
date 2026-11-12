@@ -55,7 +55,9 @@ from each other by at least 3 bases at their 3′ ends, so they are genuinely di
 [Primer Express](primer-express.md) for why this is not Primer Express's penalty.
 
 If nothing is found, the design is retried once with relaxed settings (Tm 57–61 °C, ≤ 3 G/C at
-the 3′ end, runs of 4, amplicon up to 200 bp), and the result is flagged.
+the 3′ end, runs of 4, amplicon up to 200 bp, primers up to 150 bp into the intron), and the
+result is flagged. The extra reach is for short exons between AT-rich introns — PTEN exon 3,
+45 bp, has no pair within 100 bp on either side.
 
 ## Safeguards
 
