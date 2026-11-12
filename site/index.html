@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qPCR Primers</title>
+<meta name="description" content="Precomputed qPCR (SYBR Green) primers for every coding exon, designed under the Primer Express rules, SNP-masked and checked by in-silico PCR">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f8f8fa; --panel:#ffffff; --sunken:#f2f1f6; --ink:#1d1b26; --muted:#625f70; --line:#e0deea;
+  --accent:#4b3a8c; --accent-soft:#ebe7f6; --exon:#4b3a8c;
+  --fwd:#c9eccf; --fwd-ink:#17602a; --rev:#fde2c8; --rev-ink:#8a3d00;
+  --warn:#8a5200; --warn-soft:#fdf1dc; --ok:#1d7a3a; --ok-soft:#dcf1e1; --bad:#b3261e; --bad-soft:#f9dedc;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+.wrap{max-width:1060px;margin:0 auto;padding:28px 16px 64px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 24px;margin-bottom:22px}
+h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em}
+h1 a{color:inherit;text-decoration:none}
+h1 a:hover span{text-decoration:underline}
+h1 span{color:var(--accent)}
+.meta{color:var(--muted);font-size:13px}
+.meta a{color:var(--accent);margin-left:14px;white-space:nowrap}
+.search{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.search input{flex:1 1 260px;min-width:0;font:inherit;font-size:17px;padding:11px 14px;border:1px solid var(--line);
+  border-radius:8px;background:var(--panel);color:var(--ink)}
+.search input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.btn{font:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--panel);
+  color:var(--ink);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:16px}
+.gene-head{display:flex;flex-wrap:wrap;gap:4px 22px;align-items:baseline}
+.gene-head h2{margin:0;font-size:26px;font-weight:600;font-style:italic}
+.gene-head h2.region{font-style:normal}
+.kv{color:var(--muted);font-size:13px}
+.kv b{color:var(--ink);font-weight:500;font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+.exmap{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.ex{min-width:40px;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);
+  font:500 13px "IBM Plex Mono",monospace;cursor:default;text-align:center}
+.ex.coding{border-color:var(--exon);color:var(--exon);cursor:pointer}
+.ex.coding:hover{background:var(--accent-soft)}
+.ex.sel{background:var(--exon);color:var(--panel)}
+.ex.check{border-color:var(--warn);color:var(--warn)}
+.ex.check.sel{background:var(--warn);color:var(--panel)}
+.ex.fail{border-style:dashed;border-color:var(--bad);color:var(--bad)}
+.ex.fail.sel{background:var(--bad);color:var(--panel)}
+.pill{display:inline-block;font:600 11.5px "IBM Plex Sans",sans-serif;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:2px}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.check{background:var(--warn-soft);color:var(--warn)} .pill.fail{background:var(--bad-soft);color:var(--bad)}
+.warns{margin:0 0 12px;padding:10px 14px 10px 30px;background:var(--warn-soft);border-radius:8px;font-size:13px}
+.warns li,.notes li{margin:2px 0}
+.notes{margin:0 0 12px;padding:8px 14px 8px 30px;background:var(--sunken);border-radius:8px;font-size:13px;color:var(--muted)}
+.snps{display:block;font:400 11.5px "IBM Plex Sans",sans-serif;color:var(--warn);letter-spacing:0;margin-top:2px}
+.snps a{color:inherit}
+.legend{margin-top:10px;font-size:12px;color:var(--muted)}
+.amp h3{margin:0 0 4px;font-size:17px;font-weight:600}
+.amp .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.seq{font:600 14px "IBM Plex Mono",monospace;letter-spacing:.02em;word-break:break-all}
+td.muted{color:var(--muted)}
+.tag{display:inline-block;font:600 12px "IBM Plex Mono",monospace;padding:2px 7px;border-radius:5px}
+.tag.f{background:var(--fwd);color:var(--fwd-ink)} .tag.r{background:var(--rev);color:var(--rev-ink)}
+.copy{font-size:12px;padding:4px 9px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 18px;margin:16px 0 4px}
+.facts div{font-size:12px;color:var(--muted)}
+.facts b{display:block;font:500 15px "IBM Plex Mono",monospace;color:var(--ink)}
+details{margin-top:14px}
+summary{cursor:pointer;color:var(--accent);font-size:13.5px}
+pre.amplicon{font:13px/1.7 "IBM Plex Mono",monospace;background:var(--sunken);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;margin:10px 0 0;white-space:pre}
+pre.amplicon .n{color:var(--muted);user-select:none}
+pre.amplicon .e{color:var(--exon);font-weight:600}
+pre.amplicon .pf{background:var(--fwd);color:var(--fwd-ink)}
+pre.amplicon .pr{background:var(--rev);color:var(--rev-ink)}
+pre.amplicon .snp{outline:1.5px solid var(--warn);outline-offset:-1px;border-radius:2px}
+.alt td{font-size:13px}
+.empty{color:var(--muted);text-align:center;padding:40px 10px}
+.note{font-size:12.5px;color:var(--muted);margin-top:28px;line-height:1.6}
+.table-scroll{overflow-x:auto}
+.hot{color:var(--warn);font-weight:600}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:7px 14px;border-radius:7px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+@media (max-width:600px){ td.seq{font-size:12.5px} .gene-head h2{font-size:22px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><a href="./" id="home" title="Back to the start">qPCR<span>Primers</span></a></h1>
+    <div class="meta"><span id="meta">Loading…</span>
+      <a href="https://github.com/JiMouse/qpcrprimer-batch" target="_blank" rel="noopener">Source on GitHub</a></div>
+  </header>
+
+  <div class="search">
+    <input id="q" list="genelist" placeholder="Gene, or a region — PTEN · chr10:87,863,000-87,971,000 · chr10:87925520" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Gene symbol, custom region name, or genomic region">
+    <datalist id="genelist"></datalist>
+    <a class="btn" href="qpcr_primers.xlsx" download>Download all (Excel)</a>
+  </div>
+
+  <div id="view"><div class="panel empty">Choose a gene to see a qPCR primer pair for each of its coding exons,<br>or paste a region (for example a CNV call) to list the assays inside it.</div></div>
+
+  <p class="note" id="note"></p>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let META = null, GENE = null;
+const cache = {};
+const START_HTML = '<div class="panel empty">Choose a gene to see a qPCR primer pair for each of its coding exons,<br>or paste a region (for example a CNV call) to list the assays inside it.</div>';
+
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),1400); }
+function copy(text, what){ navigator.clipboard.writeText(text).then(()=>toast(`${what} copied`)).catch(()=>toast('Copy failed')); }
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmt(n){ return Number(n).toLocaleString('en-US'); }
+
+async function init(){
+  try{
+    META = await (await fetch('data/index.json')).json();
+  }catch(e){
+    $('#meta').textContent = 'No data yet — run the build workflow.'; return;
+  }
+  const nG = META.genes.filter(g=>g.kind!=='region').length, nR = META.genes.length - nG;
+  $('#meta').innerHTML = `${fmt(nG)} genes${nR?` · ${fmt(nR)} region${nR>1?'s':''}`:''} · ${esc(META.assembly)} · built ${esc(META.generated)}`;
+  $('#genelist').innerHTML = META.genes.map(g=>`<option value="${esc(g.gene)}">${g.kind==='region'?'custom region':esc(g.transcript)+(g.refseq?' · '+esc(g.refseq):'')}</option>`).join('');
+  const p = META.params;
+  $('#note').innerHTML = `<b>Design.</b> One qPCR (SYBR Green) primer pair per coding exon of the MANE Select transcript, designed with Primer3 under the
+  Primer Express quantification rules: primer Tm ${p.tm_min}–${p.tm_max} °C (opt ${p.tm_opt}), GC ${p.gc_min}–${p.gc_max} %,
+  no more than ${p.max_end_gc} G/C among the last five 3′ bases, no run of more than ${p.max_poly_x} identical bases,
+  ΔTm ≤ ${p.max_tm_diff} °C, amplicon ${p.product_min}–${p.product_max} bp (shorter preferred).
+  The amplicon covers at least ${p.min_overlap} bases of the ${p.target==='coding'?'coding part of the exon':'exon'} (the whole of it when shorter);
+  it is sought inside the exon first, and reaches up to ${p.flank} bp into the intron only when no exonic pair exists.
+  Pairs are ranked by Primer3's penalty — not Primer Express's, which is proprietary and on another scale; every pair already meets all of the rules above.<br>
+  <b>Safeguards.</b> Common SNPs (dbSNP 155, MAF ≥ ${p.snp_maf}) and repeats are masked before design: on genomic DNA a SNP under a primer can drop one allele and mimic a heterozygous deletion.
+  Tiers: <i>clean</i> = no SNP and no repeat under the primers; <i>repeat-5p</i> = repeat only in a primer's 5′ part; <i>snp-5p</i> = SNP present but never in the last ${p.snp_3prime} bases.
+  Targets in segmental duplications are flagged. ${META.ispcr ? 'Every candidate pair was checked genome-wide by in-silico PCR (isPcr); specific pairs are preferred.' : 'Genome-wide in-silico PCR was <b>not</b> run for this build — use the UCSC link.'}
+  <b>OK</b> = clean tier, Primer Express settings, no homology alert, a single in-silico PCR product; <b>Check</b> = read the listed warnings.<br>
+  <b>Tm.</b> SantaLucia nearest-neighbour Tm at ${p.salt_mono}&nbsp;mM&nbsp;Na⁺, ${p.salt_div}&nbsp;mM&nbsp;Mg²⁺, ${p.dntp}&nbsp;mM&nbsp;dNTP, ${p.dna_conc}&nbsp;nM primer.
+  Primer Express's own Tm formula is not published, so its numbers can differ by a degree or two for the same oligo. Product Tm is an estimate of the melt-curve peak.`
+    + (META.errors && META.errors.length ? `<br>Not processed: ${META.errors.map(e=>esc(e.gene)).join(', ')}.` : '');
+  route();
+}
+
+async function loadGene(sym){
+  const hit = META.genes.find(g=>g.gene.toUpperCase()===String(sym).toUpperCase());
+  if(!hit) return null;
+  if(!cache[hit.gene]) cache[hit.gene] = await (await fetch(`data/genes/${encodeURIComponent(hit.gene)}.json`)).json();
+  return cache[hit.gene];
+}
+
+async function route(){
+  const raw = decodeURIComponent(location.hash.slice(1));
+  if(raw.startsWith('q=')){ const t=raw.slice(2); $('#q').value=t; return showRegion(t); }
+  const [g, ex] = raw.split('/');
+  if(!g){ return; }
+  const gene = await loadGene(g);
+  if(!gene){ $('#view').innerHTML = notInPanel(g); return; }
+  GENE = gene; $('#q').value = gene.gene;
+  renderGene(gene, ex ? parseInt(ex,10) : null);
+}
+
+/* ---------- gene view ---------- */
+function ampsFor(gene, n){ return gene.amplicons.filter(a=>a.exons.includes(n)); }
+function failsFor(gene, n){ return gene.failures.filter(a=>a.exons.includes(n)); }
+function exonStatus(gene, n){
+  const amps = ampsFor(gene,n), fails = failsFor(gene,n);
+  if(fails.length && !amps.length) return 'fail';
+  if(fails.length || amps.some(a=>a.status!=='OK')) return 'check';
+  return 'ok';
+}
+function isRegion(gene){ return gene.kind === 'region'; }
+
+function renderGene(gene, exNum){
+  const coding = gene.exons.filter(e=>e.coding);
+  if(exNum==null && coding.length) exNum = coding[0].n;
+  const region = isRegion(gene);
+  const chips = region ? '' : gene.exons.map(e=>{
+    if(!e.coding) return `<span class="ex" title="Exon ${e.n}: non-coding">${e.n}</span>`;
+    const st = exonStatus(gene, e.n);
+    return `<button class="ex coding ${st}${e.n===exNum?' sel':''}" data-n="${e.n}" title="Exon ${e.n}: ${e.len} bp — ${st==='ok'?'OK':st==='check'?'check warnings':'no primers'}">${e.n}</button>`;
+  }).join('');
+  const r = gene.exons[0];
+  const head = region
+    ? `<div class="panel"><div class="gene-head"><h2 class="region">${esc(gene.gene)}</h2>
+        <span class="kv">custom region <b>chr${esc(gene.chrom)}:${fmt(r.start)}-${fmt(r.end)}</b></span>
+        <span class="kv"><b>${fmt(r.len)}</b> bp</span></div>
+        <div class="legend"><button class="btn copy" id="copyGene">Copy primers (TSV)</button>
+        <button class="btn copy" id="copyOrder">Copy order rows</button></div></div>`
+    : `<div class="panel">
+    <div class="gene-head">
+      <h2>${esc(gene.gene)}</h2>
+      <span class="kv">Transcript <b>${esc(gene.transcript)}</b></span>
+      ${gene.refseq?`<span class="kv">RefSeq <b>${esc(gene.refseq)}</b></span>`:''}
+      <span class="kv">chr<b>${esc(gene.chrom)}</b> (${gene.strand===1?'+':'−'})</span>
+      <span class="kv">${esc(gene.selection)}</span>
+    </div>
+    <div class="exmap">${chips}</div>
+    <div class="legend">Coding exons: <span class="pill ok">OK</span><span class="pill check">Check</span><span class="pill fail">No primers</span> · grey = non-coding.
+      <button class="btn copy" id="copyGene" style="margin-left:8px">Copy all ${esc(gene.gene)} primers (TSV)</button>
+      <button class="btn copy" id="copyOrder">Copy all order rows</button></div>
+  </div>`;
+  const amps = exNum!=null ? ampsFor(gene, exNum) : [];
+  const fails = exNum!=null ? failsFor(gene, exNum) : [];
+  const body = amps.map(a=>renderAmp(gene,a)).join('') +
+    fails.map(f=>`<div class="panel"><div class="amp"><h3>${esc(f.name||gene.gene)} <span class="pill fail">No primers</span></h3>
+      <div class="sub">Primer3 found no pair under these rules, even relaxed. ${esc(f.reason||'')}</div></div></div>`).join('');
+  $('#view').innerHTML = head + (body || '<div class="panel empty">Select a coding exon.</div>');
+  wireButtons(gene);
+}
+
+function wireButtons(gene){
+  document.querySelectorAll('.ex.coding').forEach(b=>b.onclick=()=>{ location.hash = `${gene.gene}/${b.dataset.n}`; });
+  document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copy(b.dataset.copy, b.dataset.what));
+  if(gene && $('#copyGene')) $('#copyGene').onclick = ()=>copy(geneTSV(gene), `${gene.gene} primers`);
+  if(gene && $('#copyOrder')) $('#copyOrder').onclick = ()=>copy(geneOrder(gene), `${gene.gene} order rows`);
+}
+
+function ucscUrl(f,r){
+  const q = new URLSearchParams({db:META.ucsc_db, wp_target:'genome', wp_f:f, wp_r:r, wp_size:4000, wp_perfect:15, wp_good:15, Submit:'submit'});
+  return 'https://genome.ucsc.edu/cgi-bin/hgPcr?' + q;
+}
+function ucscBrowser(chrom,s,e){ return `https://genome.ucsc.edu/cgi-bin/hgTracks?db=${META.ucsc_db}&position=chr${chrom}:${s}-${e}`; }
+
+function placementText(gene, a, b){
+  const where = isRegion(gene) ? 'region' : 'exon';
+  return b.placement==='exonic' ? `inside the ${where}` : `reaches into the flanking sequence`;
+}
+
+function renderAmp(gene, a){
+  const ps = a.pairs, b = ps[0], name = a.name;
+  const region = isRegion(gene);
+  const what = region ? 'Custom region' : `Exon ${a.exons[0]} (${fmt(a.exon_len)} bp)`;
+  const alts = ps.slice(1).map(p=>`<tr><td>${p.rank}</td><td class="seq">${p.f_seq}${snpLine(p.f_snps,p.f_repeat)}</td><td class="seq">${p.r_seq}${snpLine(p.r_snps,p.r_repeat)}</td><td>${p.f_tm}/${p.r_tm}</td><td>${p.product}</td><td>${p.penalty}</td><td>${esc(p.placement)}</td><td>${esc(ispcrText(p.ispcr))}</td></tr>`).join('');
+  const notes = a.notes || [];
+  const row = (dir, cls, seq, len, tm, tmu, gc, egc, snps, rep, label) =>
+    `<tr><td><span class="tag ${cls}">${dir}</span></td><td>${esc(name)}${dir}</td><td class="seq">${seq}${snpLine(snps, rep)}</td><td>${len}</td><td>${tm}</td><td class="muted">${tmu}</td><td>${gc}</td><td class="${egc>(META.params.max_end_gc||2)?'hot':''}">${egc}/5</td>
+      <td><button class="btn copy" data-copy="${seq}" data-what="${label}">Copy</button></td></tr>`;
+  return `<div class="panel amp">
+    <h3>${esc(name)}${a.status==='OK'?'<span class="pill ok">OK</span>':'<span class="pill check">Check</span>'}</h3>
+    <div class="sub">${what} · target ${fmt(a.target_len)} bp${region?'':` (${esc(META.params.target==='coding'?'coding part':'whole exon')})`} · amplicon ${placementText(gene,a,b)} · tier <i>${esc(a.tier)}</i>${a.relaxed?' (relaxed)':''}</div>
+    ${a.warnings.length?`<ul class="warns">${a.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
+    ${notes.length?`<ul class="notes">${notes.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
+    <div class="table-scroll"><table>
+      <tr><th></th><th>Name</th><th>Sequence 5′→3′</th><th>Len</th><th title="Nearest-neighbour Tm the design was selected on">Tm °C</th><th title="What UCSC In-Silico PCR prints for the same oligo (older tables, no Mg²⁺)">Tm UCSC</th><th>GC %</th><th title="G or C among the five 3′-terminal bases (Primer Express: at most 2)">3′ G/C</th><th></th></tr>
+      ${row('F','f',b.f_seq,b.f_len,b.f_tm,b.f_tm_ucsc,b.f_gc,b.f_end_gc,b.f_snps,b.f_repeat,'Forward primer')}
+      ${row('R','r',b.r_seq,b.r_len,b.r_tm,b.r_tm_ucsc,b.r_gc,b.r_end_gc,b.r_snps,b.r_repeat,'Reverse primer')}
+    </table></div>
+    <div class="facts">
+      <div>Amplicon<b>${fmt(b.product)} bp</b></div>
+      <div title="Estimated melt-curve peak">Product Tm<b>${b.product_tm} °C</b></div>
+      <div>ΔTm F–R<b>${(+b.d_tm).toFixed(1)} °C</b></div>
+      <div title="Primer3 penalty, lower is better (not the Primer Express scale)">Penalty<b>${b.penalty}</b></div>
+      <div>Target covered<b>${b.target_cov}/${a.target_len} bp</b></div>
+      <div>In-silico PCR<b>${esc(ispcrText(b.ispcr))}</b></div>
+      <div>Position (${esc(META.assembly)})<b>chr${esc(b.chrom)}:${fmt(b.start)}-${fmt(b.end)}</b></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <a class="btn" target="_blank" rel="noopener" href="${ucscUrl(b.f_seq,b.r_seq)}">UCSC in-silico PCR</a>
+      <a class="btn" target="_blank" rel="noopener" href="${ucscBrowser(b.chrom,b.start,b.end)}">View in UCSC browser</a>
+      <button class="btn" data-copy="${esc(name)}F\t${b.f_seq}\n${esc(name)}R\t${b.r_seq}" data-what="Primer pair">Copy pair</button>
+      <button class="btn" data-copy="${b.amplicon}" data-what="Amplicon">Copy amplicon</button>
+      <button class="btn" data-copy="${esc(orderPair(gene,a,b))}" data-what="Order rows"
+        title="Two lines for the synthesis order sheet: name, sequence, length, empty PCR-control cell, ${esc(ORDER_SCALE)}, ${esc(ORDER_PURIF)}, ${esc(ORDER_FORMAT)}">Copy order rows</button>
+    </div>
+    <details><summary>Amplicon sequence (exon in colour, intron lower case, primers highlighted, SNPs boxed)</summary>${ampView(b)}</details>
+    ${alts?`<details><summary>${ps.length-1} alternative pair${ps.length>2?'s':''}</summary>
+      <div class="table-scroll"><table class="alt"><tr><th>#</th><th>Forward</th><th>Reverse</th><th>Tm F/R</th><th>Amplicon</th><th>Penalty</th><th>Placement</th><th>In-silico PCR</th></tr>${alts}</table></div></details>`:''}
+  </div>`;
+}
+
+function ampView(b){
+  const s = b.amplicon, L = s.length, W = 60, snpIdx = new Set();
+  (b.f_snps||[]).forEach(x=>snpIdx.add(b.f_len - x.pos3));
+  (b.r_snps||[]).forEach(x=>snpIdx.add(L - b.r_len + x.pos3 - 1));
+  let out = '';
+  for(let i=0;i<L;i+=W){
+    out += `<span class="n">${String(i+1).padStart(4,' ')}  </span>`;
+    for(let j=i;j<Math.min(i+W,L);j++){
+      const c = s[j], isE = c===c.toUpperCase();
+      const cls = j<b.f_len ? 'pf' : (j>=L-b.r_len ? 'pr' : (isE?'e':''));
+      const k = (cls + (snpIdx.has(j)?' snp':'')).trim();
+      out += k ? `<span class="${k}">${c}</span>` : c;
+    }
+    out += '\n';
+  }
+  return `<pre class="amplicon">${out}</pre>`;
+}
+
+function snpLine(snps, rep){
+  const parts = (snps||[]).map(x=>`<a target="_blank" rel="noopener" href="https://www.ncbi.nlm.nih.gov/snp/${esc(x.rs)}">${esc(x.rs)}</a> ${x.pos3} nt from 3′${x.maf!=null?`, MAF ${x.maf.toFixed(2)}`:''}`);
+  if(rep) parts.push(`${rep} nt in repeat`);
+  return parts.length ? `<span class="snps">${parts.join(' · ')}</span>` : '';
+}
+function ispcrText(ip){
+  if(!ip || !ip.checked) return 'not run';
+  if(ip.off_target && ip.off_target.length) return `${ip.off_target.length} off-target`;
+  return ip.on_target ? 'specific' : 'no product';
+}
+
+/* ---------- region search -------------------------------------------------
+   "chr7:117,559,590-117,600,000" or a single position. Every gene and custom
+   region of the build carries its span in index.json, so only the genes that
+   overlap are fetched. The answer is the exons (and custom regions) inside
+   the range with their primary pair - the assays to run for a CNV call. A
+   single position inside an intron gets the exons on either side.          */
+
+function parseCoords(text){
+  const s = String(text).trim().replace(/\s+/g,'').replace(/,/g,'');
+  const m = s.match(/^(?:chr)?(2[0-2]|1[0-9]|[1-9]|X|Y|MT?)[:](\d+)(?:-(\d+))?$/i);
+  if(!m) return null;
+  let chrom = m[1].toUpperCase(); if(chrom==='M') chrom='MT';
+  let a = +m[2], b = m[3]!=null ? +m[3] : +m[2];
+  if(a > b) [a,b] = [b,a];
+  return {chrom, start:a, end:b, point: m[3]==null};
+}
+
+function entriesOverlapping(c){
+  return META.genes.filter(g=>String(g.chrom).toUpperCase()===c.chrom && g.start!=null && g.start<=c.end && g.end>=c.start);
+}
+
+/* Rows for one gene: exons overlapping the range, or for a point in an
+   intron the two exons around it. */
+function exonsInRange(gene, c){
+  const coding = gene.exons.filter(e=>e.coding);
+  const hit = coding.filter(e=>e.start<=c.end && e.end>=c.start);
+  if(hit.length || !c.point) return {exons:hit, intronic:false};
+  const before = coding.filter(e=>e.end < c.start).sort((x,y)=>y.end-x.end)[0];
+  const after = coding.filter(e=>e.start > c.end).sort((x,y)=>x.start-y.start)[0];
+  return {exons:[before, after].filter(Boolean).sort((x,y)=>x.n-y.n), intronic:true};
+}
+
+async function showRegion(text){
+  const c = parseCoords(text);
+  if(!c){ $('#view').innerHTML = notInPanel(text); return; }
+  const span = c.point ? `chr${c.chrom}:${fmt(c.start)}` : `chr${c.chrom}:${fmt(c.start)}-${fmt(c.end)}`;
+  const entries = entriesOverlapping(c);
+  if(!entries.length){
+    $('#view').innerHTML = `<div class="panel empty">No gene or custom region of this build overlaps ${esc(span)}.<br>
+      <span class="legend">Regions outside the panel can be added to <code>regions.txt</code> and designed by the next build.</span></div>`;
+    return;
+  }
+  const rows = [], notes = [];
+  for(const en of entries){
+    const g = await loadGene(en.gene);
+    if(!g) continue;
+    const {exons, intronic} = exonsInRange(g, c);
+    if(intronic) notes.push(`${span} is intronic in ${g.gene}; the exons on either side are shown.`);
+    for(const e of exons){
+      const amps = ampsFor(g, e.n), fails = failsFor(g, e.n);
+      amps.forEach(a=>rows.push({g, e, a}));
+      fails.forEach(f=>rows.push({g, e, f}));
+    }
+  }
+  const nOK = rows.filter(r=>r.a && r.a.status==='OK').length;
+  const tr = rows.map(({g,e,a,f})=>{
+    const link = isRegion(g) ? `#${encodeURIComponent(g.gene)}` : `#${encodeURIComponent(g.gene)}/${e.n}`;
+    if(f) return `<tr><td><a href="${link}">${esc(f.name||g.gene)}</a> <span class="pill fail">No primers</span></td><td colspan="4" class="muted">${esc(f.reason||'')}</td></tr>`;
+    const b = a.pairs[0];
+    const cls = a.status==='OK'?'ok':'check';
+    return `<tr><td><a href="${link}">${esc(a.name)}</a> <span class="pill ${cls}">${esc(a.status)}</span></td>
+      <td class="seq">${esc(b.f_seq)}</td><td class="seq">${esc(b.r_seq)}</td><td>${b.product} bp</td>
+      <td>${fmt(b.start)}–${fmt(b.end)}</td></tr>`;
+  }).join('');
+  $('#view').innerHTML = `<div class="panel">
+    <div class="gene-head"><h2 class="region">${esc(span)}</h2>
+      <span class="kv">${c.point?'position':`<b>${fmt(c.end-c.start+1)}</b> bp`}</span>
+      <span class="kv">${entries.map(en=>esc(en.gene)).join(', ')}</span>
+      <span class="kv"><b>${rows.length}</b> assay${rows.length===1?'':'s'}, ${nOK} OK</span></div>
+    ${notes.length?`<ul class="notes">${notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:''}
+    ${rows.length
+      ? `<div class="table-scroll"><table><thead><tr><th>Assay</th><th>Forward</th><th>Reverse</th><th>Amplicon</th><th>Position</th></tr></thead><tbody>${tr}</tbody></table></div>
+         <div class="legend" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">Click an assay for the full record.
+         <button class="btn copy" id="copyRange">Copy these primers (TSV)</button>
+         <button class="btn copy" id="copyRangeOrder">Copy order rows</button></div>`
+      : `<div class="panel empty" style="margin:0">The range overlaps ${entries.map(en=>esc(en.gene)).join(', ')} but no coding exon.</div>`}
+  </div>`;
+  const okRows = rows.filter(r=>r.a);
+  if($('#copyRange')) $('#copyRange').onclick = ()=>copy(tsvRows(okRows.map(r=>[r.g,r.a])), 'Primers');
+  if($('#copyRangeOrder')) $('#copyRangeOrder').onclick = ()=>copy(okRows.map(r=>orderPair(r.g,r.a,r.a.pairs[0])).join('\n'), 'Order rows');
+}
+
+/* ---------- "not in the panel" ---------- */
+function editDistance(a,b){
+  const m=a.length, n=b.length;
+  if(Math.abs(m-n)>2) return 3;
+  let prev=Array.from({length:n+1},(_,j)=>j), cur=new Array(n+1);
+  for(let i=1;i<=m;i++){
+    cur[0]=i;
+    for(let j=1;j<=n;j++)
+      cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    [prev,cur]=[cur,prev];
+  }
+  return prev[n];
+}
+function nearestSymbols(q, limit=6){
+  const u = String(q).toUpperCase(), syms = META ? META.genes.map(g=>g.gene) : [];
+  const close = [], prefix = [];
+  for(const s of syms){
+    const d = editDistance(u, s.toUpperCase());
+    if(d<=2) close.push([d,s]);
+    else if(u.length>=3 && s.toUpperCase().startsWith(u.slice(0,Math.min(4,u.length)))) prefix.push(s);
+  }
+  close.sort((a,b)=>a[0]-b[0] || a[1].localeCompare(b[1]));
+  return close.map(c=>c[1]).concat(prefix.sort()).slice(0, limit);
+}
+function notInPanel(text){
+  const near = nearestSymbols(text);
+  const links = near.map(s=>`<a href="#${encodeURIComponent(s)}">${esc(s)}</a>`).join(' · ');
+  return `<div class="panel empty">Check the spelling &mdash; otherwise <b>${esc(text)}</b> is not in this build.<br>
+    It covers ${fmt(META.genes.length)} genes and regions. A region is written <code>chr10:87925520</code> or <code>chr10:87,863,000-87,971,000</code>.
+    ${near.length?`<br>Did you mean ${links}?`:''}</div>`;
+}
+
+/* ---------- exports -------------------------------------------------------
+   Order rows: one line per oligo, tab separated, in the column order of the
+   batch order sheet used for exonprimer-batch: name, sequence, length,
+   "PCR positive control" (empty), then three fixed parameters. Names are
+   GENE-qE<exon>-F / -R, so a qPCR primer never shares a name with the
+   Sanger primer of the same exon.                                        */
+const ORDER_SCALE = '40 nmol (10-99 bases)', ORDER_PURIF = 'RP-HPLC', ORDER_FORMAT = 'H2O-100 µM';
+
+function orderName(gene, a, dir){ return isRegion(gene) ? `${gene.gene}-q-${dir}` : `${gene.gene}-qE${a.label}-${dir}`; }
+function orderRow(name, seq){ return [name, seq, seq.length, '', ORDER_SCALE, ORDER_PURIF, ORDER_FORMAT].join('\t'); }
+function orderPair(gene, a, b){
+  return orderRow(orderName(gene,a,'F'), b.f_seq) + '\n' + orderRow(orderName(gene,a,'R'), b.r_seq);
+}
+function geneOrder(gene){ return gene.amplicons.map(a=>orderPair(gene, a, a.pairs[0])).join('\n'); }
+function tsvRows(pairs){
+  const rows = [['Name','Sequence','Target','Status','Amplicon_bp','Tm','Product_Tm','Position']];
+  pairs.forEach(([g,a])=>{ const b=a.pairs[0];
+    const t = isRegion(g) ? 'region' : `exon ${a.label}`, loc=`chr${b.chrom}:${b.start}-${b.end}`;
+    rows.push([a.name+'F', b.f_seq, `${g.gene} ${t}`, a.status, b.product, b.f_tm, b.product_tm, loc]);
+    rows.push([a.name+'R', b.r_seq, `${g.gene} ${t}`, a.status, b.product, b.r_tm, b.product_tm, loc]); });
+  return rows.map(r=>r.join('\t')).join('\n');
+}
+function geneTSV(gene){ return tsvRows(gene.amplicons.map(a=>[gene,a])); }
+
+function submitQuery(text){
+  const t = text.trim();
+  if(!t) return;
+  const hit = META && META.genes.find(g=>g.gene.toUpperCase()===t.toUpperCase());
+  location.hash = hit ? hit.gene : (parseCoords(t) ? 'q=' + encodeURIComponent(t.replace(/\s+/g,'')) : t);
+}
+$('#home').addEventListener('click', e=>{
+  if(e.metaKey||e.ctrlKey||e.shiftKey||e.button) return;
+  e.preventDefault();
+  GENE = null; $('#q').value = '';
+  history.pushState('', '', location.pathname + location.search);
+  $('#view').innerHTML = START_HTML;
+});
+$('#q').addEventListener('change', e=>submitQuery(e.target.value));
+$('#q').addEventListener('keydown', e=>{ if(e.key==='Enter') submitQuery(e.target.value); });
+window.addEventListener('hashchange', route);
+init();
+</script>
+</body>
+</html>
