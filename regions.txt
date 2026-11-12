@@ -1,0 +1,14 @@
+# Custom qPCR targets outside the coding exons - any genomic region.
+#
+# One region per line: a name, then chr:start-end (GRCh38 by default, the
+# assembly of the build). The name becomes the primer name (NAME_qF / NAME_qR)
+# and the site's search key; letters, digits, '_', '-' and '.' only.
+# Commas in the coordinates are fine. Up to 50,000 bp per region.
+#
+# The amplicon is designed inside the region; when the region is shorter than
+# an amplicon, the primers reach into the flanking sequence and the pair
+# covers the whole region, as for a short exon.
+#
+# Format examples (placeholder coordinates):
+# MY_REGION_1   chr7:117,559,590-117,559,800
+# MY_REGION_2   chrX:31,950,000-31,950,400

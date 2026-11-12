@@ -1,0 +1,6 @@
+.cache/
+tools/
+test_output/
+__pycache__/
+site/qpcr_primers.xlsx
+*.xlsx
