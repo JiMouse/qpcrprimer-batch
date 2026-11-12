@@ -69,6 +69,7 @@ td.muted{color:var(--muted)}
 .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 18px;margin:16px 0 4px}
 .facts div{font-size:12px;color:var(--muted)}
 .facts b{display:block;font:500 15px "IBM Plex Mono",monospace;color:var(--ink)}
+.facts .wide{grid-column:span 2}
 details{margin-top:14px}
 summary{cursor:pointer;color:var(--accent);font-size:13.5px}
 pre.amplicon{font:13px/1.7 "IBM Plex Mono",monospace;background:var(--sunken);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;margin:10px 0 0;white-space:pre}
@@ -236,8 +237,10 @@ function renderAmp(gene, a){
   const what = region ? 'Custom region' : `Exon ${a.exons[0]} (${fmt(a.exon_len)} bp)`;
   const alts = ps.slice(1).map(p=>`<tr><td>${p.rank}</td><td class="seq">${p.f_seq}${snpLine(p.f_snps,p.f_repeat)}</td><td class="seq">${p.r_seq}${snpLine(p.r_snps,p.r_repeat)}</td><td>${p.f_tm}/${p.r_tm}</td><td>${p.product}</td><td>${p.penalty}</td><td>${esc(p.placement)}</td><td>${esc(ispcrText(p.ispcr))}</td></tr>`).join('');
   const notes = a.notes || [];
+  const P = META.params;
+  const out = (v, lo, hi) => (v < lo || v > hi) ? 'hot' : '';   // only a relaxed pair can be outside
   const row = (dir, cls, seq, len, tm, tmu, gc, egc, snps, rep, label) =>
-    `<tr><td><span class="tag ${cls}">${dir}</span></td><td>${esc(name)}${dir}</td><td class="seq">${seq}${snpLine(snps, rep)}</td><td>${len}</td><td>${tm}</td><td class="muted">${tmu}</td><td>${gc}</td><td class="${egc>(META.params.max_end_gc||2)?'hot':''}">${egc}/5</td>
+    `<tr><td><span class="tag ${cls}">${dir}</span></td><td>${esc(name)}${dir}</td><td class="seq">${seq}${snpLine(snps, rep)}</td><td>${len}</td><td class="${out(tm,P.tm_min,P.tm_max)}">${tm}</td><td class="muted">${tmu}</td><td class="${out(gc,P.gc_min,P.gc_max)}">${gc}</td><td class="${out(egc,0,P.max_end_gc)}">${egc}/5</td>
       <td><button class="btn copy" data-copy="${seq}" data-what="${label}">Copy</button></td></tr>`;
   return `<div class="panel amp">
     <h3>${esc(name)}${a.status==='OK'?'<span class="pill ok">OK</span>':'<span class="pill check">Check</span>'}</h3>
@@ -256,7 +259,7 @@ function renderAmp(gene, a){
       <div title="Primer3 penalty, lower is better (not the Primer Express scale)">Penalty<b>${b.penalty}</b></div>
       <div>Target covered<b>${b.target_cov}/${a.target_len} bp</b></div>
       <div>In-silico PCR<b>${esc(ispcrText(b.ispcr))}</b></div>
-      <div>Position (${esc(META.assembly)})<b>chr${esc(b.chrom)}:${fmt(b.start)}-${fmt(b.end)}</b></div>
+      <div class="wide">Position (${esc(META.assembly)})<b>chr${esc(b.chrom)}:${fmt(b.start)}-${fmt(b.end)}</b></div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
       <a class="btn" target="_blank" rel="noopener" href="${ucscUrl(b.f_seq,b.r_seq)}">UCSC in-silico PCR</a>

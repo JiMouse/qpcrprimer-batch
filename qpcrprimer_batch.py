@@ -891,8 +891,6 @@ def amplicon_notes(g: dict, a: dict) -> list[str]:
     if b["placement"] == "spanning":
         what = "region" if g["kind"] == "region" else f'exon ({a["exon_len"]} bp)'
         n.append(f"Amplicon reaches into the flanking sequence: no pair fits inside the {what}")
-    if b["target_cov"] < a["target_len"]:
-        n.append(f'Covers {b["target_cov"]} of the {a["target_len"]} target bases')
     if b["amp_snps"]:
         n.append(f'{len(b["amp_snps"])} common SNP(s) between the primers (not under them): '
                  + ", ".join(s["rs"] for s in b["amp_snps"][:5]))

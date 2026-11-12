@@ -125,6 +125,7 @@ ok(has('81.4 °C'), 'product Tm (melt peak) is shown');
 ok(has('0.62'), 'penalty is shown');
 ok(has('inside the exon'), 'placement is stated');
 ok(has('2/5'), "3' G/C count is shown");
+ok(!has('class="hot"'), 'nothing is highlighted when every value is inside the rules');
 ok(has('1 alternative pair'), 'alternatives are offered');
 ok(has('hgPcr?') && has('wp_f=ACGTACGTACGTACGTACGT'), 'UCSC in-silico PCR link carries the pair');
 ok(!has('undefined') && !has('NaN'), 'no undefined or NaN in the exon view');
@@ -135,7 +136,9 @@ ok(has('&lt;script&gt;') && !has('<script>'), 'warnings are escaped');
 ok(has('rs456'), 'notes are shown');
 ok(has('rs123') && has('8 nt from 3'), 'the SNP under a primer is shown under the sequence');
 
+FILES['data/genes/MINUSG.json'].amplicons[0].pairs[0].f_tm = 57.2;   // as a relaxed pair can be
 await go('MINUSG/2');
+ok(has('<td class="hot">57.2</td>'), 'a Tm outside the window is highlighted');
 ok(has('MINUSG_qE2') && has('chr<b>8</b> (−)'), 'minus-strand gene renders');
 
 await go('REG1');

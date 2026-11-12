@@ -10,8 +10,9 @@ Three temperatures are reported; each has a single use.
 | **Product Tm** | Primer3's estimate of the amplicon's melting temperature | what to expect of the melt-curve peak |
 
 The conditions are those of exonprimer-batch, so a primer reads the same Tm in both tools; its
-[Tm page](https://github.com/JiMouse/exonprimer-batch/blob/main/docs/tm.md) explains why UCSC
-prints 5–8 °C more for a 20-mer, and why a calculator that models Na⁺ alone prints about 6 °C less.
+[Tm page](https://github.com/JiMouse/exonprimer-batch/blob/main/docs/tm.md) explains why UCSC's
+number differs from this one by a few degrees, in either direction (older tables and no
+magnesium), and why a calculator that models Na⁺ alone prints about 6 °C less.
 Change them with `--salt MONO DIV DNTP OLIGO`.
 
 ## At the bench
