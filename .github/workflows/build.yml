@@ -1,0 +1,376 @@
+name: Build qPCR primers and deploy site
+
+# Runs when genes.txt / regions.txt / the script / the site change, or by hand
+# (Actions tab -> "Build qPCR primers and deploy site" -> Run workflow).
+#
+# The gene list is far too large for a single job, so the work is sharded:
+# "plan" splits genes.txt into chunks, "design" runs one chunk per job, and
+# "merge" stitches the chunks into one site/ and one workbook before deploying.
+# The custom regions of regions.txt are designed by one more job of their own.
+#
+# The built data is committed to site/data, so every build records what changed
+# and `git log -p site/data/genes/PTEN.json` is that gene's primer history. The
+# workbook is not committed: an xlsx is a zip, so it deltas badly.
+#
+# The data is also published as a release asset, keyed on the inputs that
+# determine it. When only the website changes, "plan" finds that asset, "design"
+# is skipped entirely and "merge" restores the data instead of rebuilding it, so
+# a presentation change deploys in a couple of minutes rather than ~40.
+on:
+  push:
+    branches: [main]
+    # site/index.html, not site/**: the built data under site/data is committed
+    # by this workflow, and matching it here would make every build trigger another.
+    paths: [genes.txt, regions.txt, qpcrprimer_batch.py, scripts/**, site/index.html, .github/workflows/build.yml]
+  workflow_dispatch:
+    inputs:
+      assembly:
+        description: Genome build
+        type: choice
+        options: [GRCh38, GRCh37]
+        default: GRCh38
+      ispcr:
+        description: Genome-wide in-silico PCR check (downloads the genome, ~10 min first time)
+        type: boolean
+        default: true
+      chunk_size:
+        description: Genes per job (smaller = more jobs, each finishing sooner)
+        default: "150"
+      max_parallel:
+        description: Concurrent jobs. Keep low - every job queries Ensembl and UCSC.
+        default: "4"
+      extra_args:
+        description: "Extra options, e.g. --flank 60 --snp-maf 0.05 --strict"
+        required: false
+        default: ""
+      force_rebuild:
+        description: Rebuild the data even if an unchanged copy is already published
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  ASSEMBLY: ${{ inputs.assembly || 'GRCh38' }}
+  RUN_ISPCR: ${{ github.event_name == 'push' || inputs.ispcr }}
+  CHUNK_SIZE: ${{ inputs.chunk_size || '150' }}
+  # One release holds every build of the data, one asset per input fingerprint.
+  DATA_TAG: data-cache
+
+jobs:
+  # ---- 1. split the gene list and publish the chunk list as a matrix ----
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      chunks: ${{ steps.split.outputs.chunks }}
+      count: ${{ steps.split.outputs.count }}
+      data_key: ${{ steps.key.outputs.data_key }}
+      have_data: ${{ steps.key.outputs.have_data }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Offline tests
+        run: python tests/test_offline.py
+
+      - name: Website tests
+        run: node tests/test_page.mjs
+
+      # Everything that changes the primers goes into the fingerprint; the
+      # website does not, which is the whole point.
+      - name: Fingerprint the data inputs
+        id: key
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXTRA: ${{ inputs.extra_args }}
+        run: |
+          H=$(cat genes.txt regions.txt qpcrprimer_batch.py scripts/merge_parts.py \
+              | sha256sum | cut -c1-16)
+          KEY="${ASSEMBLY}-ispcr${RUN_ISPCR}-${EXTRA:+x}$(printf %s "$EXTRA" | sha256sum | cut -c1-6)-${H}"
+          echo "data_key=$KEY" >> "$GITHUB_OUTPUT"
+          echo "fingerprint: $KEY"
+          if [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            echo "have_data=false" >> "$GITHUB_OUTPUT"
+            echo "force_rebuild requested - designing from scratch"
+            exit 0
+          fi
+          if gh release view "$DATA_TAG" --json assets \
+               --jq '.assets[].name' 2>/dev/null | grep -qx "site-data-$KEY.tar.gz"; then
+            echo "have_data=true" >> "$GITHUB_OUTPUT"
+            echo "data for this fingerprint is already published - skipping design"
+          else
+            echo "have_data=false" >> "$GITHUB_OUTPUT"
+            echo "no published data for this fingerprint - designing"
+          fi
+
+      - name: Split gene list
+        id: split
+        run: |
+          mkdir -p chunks
+          # Normalise first: drop comments and blanks so chunks are even.
+          grep -v '^\s*#' genes.txt | grep -v '^\s*$' > all_genes.txt
+          split -l "$CHUNK_SIZE" -d -a 3 all_genes.txt chunks/chunk_
+          # The custom regions are one more job, when regions.txt lists any.
+          if grep -v '^\s*#' regions.txt | grep -q '[^[:space:]]'; then
+            cp regions.txt chunks/chunk_regions
+          fi
+          ls chunks | sed 's/chunk_//' | jq -R . | jq -sc . > ids.json
+          echo "chunks=$(cat ids.json)" >> "$GITHUB_OUTPUT"
+          echo "count=$(ls chunks | wc -l | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          echo "$(wc -l < all_genes.txt) genes, regions.txt $( [ -f chunks/chunk_regions ] && echo included || echo empty ), $(ls chunks | wc -l) jobs"
+
+      - uses: actions/upload-artifact@v7
+        if: steps.key.outputs.have_data != 'true'
+        with:
+          name: chunks
+          path: chunks
+
+  # ---- 2. design one chunk per job ----
+  design:
+    needs: plan
+    if: needs.plan.outputs.have_data != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false            # one bad chunk must not discard the rest
+      max-parallel: ${{ fromJSON(inputs.max_parallel || '4') }}
+      matrix:
+        chunk: ${{ fromJSON(needs.plan.outputs.chunks) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: chunks
+          path: chunks
+
+      - name: Genome db name
+        run: echo "UCSC_DB=$([ "$ASSEMBLY" = GRCh37 ] && echo hg19 || echo hg38)" >> "$GITHUB_ENV"
+
+      # ---- isPcr + genome (.2bit), cached between runs ----
+      - name: Restore isPcr and genome
+        if: env.RUN_ISPCR == 'true'
+        id: genome
+        uses: actions/cache@v6
+        with:
+          path: tools
+          key: ispcr-${{ env.UCSC_DB }}-v1
+
+      # A UCSC outage must not block the site: the design step falls back to
+      # running without isPcr, and the output says "in-silico PCR not run".
+      # Downloads are staged so a partial set is never cached.
+      - name: Download isPcr and genome
+        if: env.RUN_ISPCR == 'true' && steps.genome.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          tmp=$(mktemp -d)
+          curl -fsSL -o "$tmp/isPcr" https://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/blat/isPcr
+          chmod +x "$tmp/isPcr"
+          curl -fsSL -o "$tmp/${UCSC_DB}.2bit" \
+            https://hgdownload.soe.ucsc.edu/goldenPath/${UCSC_DB}/bigZips/${UCSC_DB}.2bit
+          mkdir -p tools
+          mv "$tmp/isPcr" "$tmp/${UCSC_DB}.2bit" tools/
+
+      # Each chunk keeps its own web cache, restored from any earlier run of
+      # the same chunk so only genuinely new genes hit Ensembl and UCSC.
+      - name: Restore web cache (Ensembl / UCSC responses)
+        uses: actions/cache@v6
+        with:
+          path: .cache
+          key: web-${{ env.ASSEMBLY }}-${{ matrix.chunk }}-${{ hashFiles(format('chunks/chunk_{0}', matrix.chunk)) }}
+          restore-keys: |
+            web-${{ env.ASSEMBLY }}-${{ matrix.chunk }}-
+            web-${{ env.ASSEMBLY }}-
+
+      - name: Design primers
+        run: |
+          ISPCR_ARGS=""
+          if [ "$RUN_ISPCR" = "true" ] && [ -x tools/isPcr ]; then
+            ISPCR_ARGS="--ispcr tools/isPcr --genome-2bit tools/${UCSC_DB}.2bit"
+          fi
+          mkdir -p "parts/${{ matrix.chunk }}"
+          if [ "${{ matrix.chunk }}" = "regions" ]; then
+            INPUT="--regions chunks/chunk_regions"
+          else
+            INPUT="chunks/chunk_${{ matrix.chunk }}"
+          fi
+          python qpcrprimer_batch.py $INPUT \
+            --assembly "$ASSEMBLY" \
+            -o "parts/${{ matrix.chunk }}/part.xlsx" \
+            --json-dir "parts/${{ matrix.chunk }}/data" \
+            $ISPCR_ARGS ${{ inputs.extra_args }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: part-${{ matrix.chunk }}
+          path: parts/${{ matrix.chunk }}
+          retention-days: 7
+
+  # ---- 3. merge every chunk into one site and one workbook ----
+  merge:
+    needs: [plan, design]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # publishes the built data as a release asset
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # site/data is committed, so the checkout arrives with the previous
+      # build's genes in it. Whatever is restored or merged below is the whole
+      # truth, so clear them first: a gene dropped from genes.txt must not
+      # survive as a stale file that still gets served.
+      - name: Clear the committed gene data
+        run: |
+          n=$(ls site/data/genes/*.json 2>/dev/null | wc -l | tr -d ' ')
+          rm -f site/data/genes/*.json
+          echo "cleared $n gene files from the checkout"
+
+      # ---- website-only change: take the published data as it is ----
+      - name: Restore published data
+        if: needs.plan.outputs.have_data == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$DATA_TAG" \
+            --pattern "site-data-${{ needs.plan.outputs.data_key }}.tar.gz" --dir .
+          tar -xzf "site-data-${{ needs.plan.outputs.data_key }}.tar.gz" -C site
+          rm -f "site-data-${{ needs.plan.outputs.data_key }}.tar.gz"
+          echo "restored $(ls site/data/genes | wc -l) gene files without designing anything"
+
+      # ---- data change: merge the chunks and publish the result ----
+      - uses: actions/download-artifact@v8
+        if: needs.plan.outputs.have_data != 'true'
+        with:
+          pattern: part-*
+          path: parts
+
+      - name: Merge chunks
+        if: needs.plan.outputs.have_data != 'true'
+        run: |
+          have=$(ls parts 2>/dev/null | wc -l | tr -d ' ')
+          echo "merging $have of ${{ needs.plan.outputs.count }} chunks"
+          if [ "$have" -lt "${{ needs.plan.outputs.count }}" ]; then
+            echo "::warning::only $have of ${{ needs.plan.outputs.count }} chunks produced output; the site will be incomplete"
+          fi
+          python scripts/merge_parts.py parts site
+
+      # A partial build must not be published as this fingerprint's data, or
+      # later website changes would keep restoring the gap.
+      - name: Publish the built data
+        if: needs.plan.outputs.have_data != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          have=$(ls parts 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$have" -lt "${{ needs.plan.outputs.count }}" ]; then
+            echo "::warning::incomplete build ($have/${{ needs.plan.outputs.count }} chunks) - not published; the site still deploys"
+            exit 0
+          fi
+          f="site-data-${{ needs.plan.outputs.data_key }}.tar.gz"
+          tar -czf "$f" -C site data qpcr_primers.xlsx
+          echo "asset: $f ($(du -h "$f" | cut -f1))"
+          gh release view "$DATA_TAG" >/dev/null 2>&1 || \
+            gh release create "$DATA_TAG" --prerelease \
+              --title "Built data (cache)" \
+              --notes "Built qPCR primer data, one asset per input fingerprint. Not a software release: it exists so a website-only change can redeploy without designing thousands of genes again. Created automatically by the build workflow."
+          gh release upload "$DATA_TAG" "$f" --clobber
+          # keep the three newest fingerprints
+          gh release view "$DATA_TAG" --json assets \
+            --jq '.assets | sort_by(.createdAt) | reverse | .[3:] | .[].name' \
+            | while read -r old; do [ -n "$old" ] && gh release delete-asset "$DATA_TAG" "$old" -y; done
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: qpcr_primers
+          path: site/qpcr_primers.xlsx
+
+      # Genes from a missing chunk vanish from the site without appearing in
+      # index.json's error list, so an incomplete build must not replace a
+      # complete one. The merged output stays as an artifact to inspect, and a
+      # re-run completes the set cheaply from the per-chunk caches.
+      - name: Refuse to deploy an incomplete build
+        if: needs.plan.outputs.have_data != 'true'
+        run: |
+          have=$(ls parts 2>/dev/null | wc -l | tr -d ' ')
+          want=${{ needs.plan.outputs.count }}
+          if [ "$have" -lt "$want" ]; then
+            echo "::error::only $have of $want chunks produced output - not deploying, so the current site stays. Re-run the workflow; finished chunks come back from cache."
+            exit 1
+          fi
+          echo "all $want chunks present"
+
+      # The data is committed, so each build records what actually changed:
+      # `git log -p site/data/genes/PTEN.json` becomes the history of that
+      # gene's primers. Runs after the gate above, so an incomplete build is
+      # never recorded. A failure here must not block the deploy.
+      - name: Commit the built data
+        run: |
+          git add -A site/data
+          if git diff --cached --quiet; then
+            echo "data is identical to what is committed - nothing to record"
+            exit 0
+          fi
+          changed=$(git diff --cached --name-only | wc -l | tr -d ' ')
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q \
+            -m "Built data: $changed files changed" \
+            -m "Assembly $ASSEMBLY, fingerprint ${{ needs.plan.outputs.data_key }}, run $GITHUB_RUN_ID."
+          # main may have moved while the build ran; only data files are ours,
+          # so rebasing onto it is safe.
+          for i in 1 2 3; do
+            if git pull --rebase --autostash -q origin "$GITHUB_REF_NAME" \
+               && git push -q origin "HEAD:$GITHUB_REF_NAME"; then
+              echo "recorded $changed changed files"
+              exit 0
+            fi
+            echo "attempt $i failed - retrying"
+            sleep 5
+          done
+          echo "::warning::could not push the built data; the site deployed anyway"
+
+  deploy:
+    needs: merge
+    # design is skipped on a website-only change, and a skipped job upstream
+    # would otherwise skip this one too, deploying nothing.
+    if: always() && needs.merge.result == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
