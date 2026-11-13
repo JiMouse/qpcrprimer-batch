@@ -22,15 +22,18 @@ The design is meant for **genomic DNA** — confirming an exon deletion or dupli
 
 - the amplicon must cover at least **40 target bases** (`--min-overlap`), or the **whole target**
   when it is shorter than that;
-- it is first sought **entirely inside the exon** (placement `exonic`), and kept there while its
-  penalty stays under 100;
-- otherwise the primers may reach up to **100 bp into the flanking intron** (`--flank`; placement
-  `spanning`), and the lower-penalty pair of the two searches wins. An exon shorter than the
-  minimum amplicon, 50 bp, is always spanned, and the amplicon then contains all of it.
+- the primers may sit anywhere in the exon or up to **100 bp into the flanking intron**
+  (`--flank`), and the **lowest Primer Express penalty wins**, wherever it sits — as Primer Express
+  ranks an exon pasted with its flanking intron. On equal penalty, a pair entirely inside the exon
+  (placement `exonic`) comes before one that reaches into the intron (`spanning`). An exon shorter
+  than the minimum amplicon, 50 bp, is always spanned, and the amplicon then contains all of it.
 
 A spanning amplicon is not a warning — it is noted, because a deletion that removes only the exon
 and not the primer sites is still detected, but a breakpoint inside the flank would be read
 differently.
+
+A **custom region** is what you chose to target: its pair stays inside it, and reaches into the
+flanking sequence only when nothing fits there.
 
 ## Primer rules and penalty
 
@@ -86,9 +89,8 @@ Design runs in tiers and stops at the first that works:
 | `snp-5p` | a common SNP lies under a primer, but never in its last 5 bases (`--snp-3prime`) | Check |
 
 The full order of preference is: Primer Express settings before relaxed; `clean` before
-`repeat-5p` before `snp-5p`; then inside the exon before spanning, as long as the exonic pair's
-penalty stays under 100. So a clean pair that reaches into the intron is preferred to an exonic
-pair with a SNP under it. `--strict` keeps only `clean`.
+`repeat-5p` before `snp-5p`; then the lowest penalty. So a clean pair that reaches into the
+intron is preferred to an exonic pair with a SNP under it. `--strict` keeps only `clean`.
 
 SNPs **between** the primers are listed as a note, not a warning: they do not affect
 amplification, only — slightly — the melt curve.

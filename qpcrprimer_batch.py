@@ -79,7 +79,7 @@ TIERS = {
 }
 PLACEMENTS = {
     "exonic": "amplicon entirely inside the exon (or the region)",
-    "spanning": "primers reach into the flanking sequence, because no exonic pair exists",
+    "spanning": "primers reach into the flanking sequence, where the lowest-penalty pair was",
 }
 MAX_REGION = 50_000      # bp; a custom region larger than this is refused
 
@@ -771,9 +771,11 @@ def needed_overlap(t: Target, p: Params) -> int:
 def design_target(m: GeneModel, t: Target, p: Params) -> dict:
     """Try, in order of preference, until a pair is found:
     normal settings before relaxed; clean before repeat-5p before snp-5p.
-    Within a tier, a pair inside the exon is kept if its penalty is under the
-    Primer Express cut-off; otherwise primers may reach into the flanking
-    intron, and the lower-penalty pair of the two searches wins."""
+    Within a tier the lowest Primer Express penalty wins, wherever the pair
+    sits in the exon and its flanks (up to --flank bp into the intron) - as
+    Primer Express ranks a pasted exon with its flanking intron. On equal
+    penalty, a pair inside the exon comes first. A custom region is what the
+    user pasted: its pair stays inside it, and reaches out only when none fits."""
     need = needed_overlap(t, p)
     n_cand = max(6, 2 * p.num_return)
     result = {"pairs": [], "relaxed": False, "tier": "", "placement": "", "explain": ""}
@@ -805,7 +807,7 @@ def design_target(m: GeneModel, t: Target, p: Params) -> dict:
         pairs, res = [], {}
         for band in p.product_bands(relaxed, w1 - w0 + 1):
             gg = dict(g, PRIMER_PRODUCT_SIZE_RANGE=[band],
-                      PRIMER_LOWERCASE_MASKING=1, PRIMER_NUM_RETURN=100,
+                      PRIMER_LOWERCASE_MASKING=1, PRIMER_NUM_RETURN=400,
                       PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT=0,
                       PRIMER_MAX_SELF_ANY=9999, PRIMER_MAX_SELF_END=9999,
                       PRIMER_PAIR_MAX_COMPL_ANY=9999, PRIMER_PAIR_MAX_COMPL_END=9999)
@@ -817,22 +819,23 @@ def design_target(m: GeneModel, t: Target, p: Params) -> dict:
                    and max_run(b["f_seq"], "G") <= g_max and max_run(b["r_seq"], "G") <= g_max
                    and (tier != "snp-5p" or all(s["pos3"] > p.snp_3prime for s in b["f_snps"] + b["r_snps"]))
                    and pair_ok(b["f_seq"], b["r_seq"])]
-            pairs = distinct_pairs(sorted(pairs + got, key=lambda b: b["penalty"]))
+            pairs = distinct_pairs(sorted(pairs + got, key=lambda b: (b["penalty"], b["placement"] != "exonic")))
             if len(pairs) >= n_cand:
                 break
         return pairs, res
 
     for relaxed in ([False, True] if p.relax else [False]):
         for tier in tiers:
-            pairs, _ = search(tier, relaxed, 0)
-            if not pairs or pairs[0]["penalty"] >= p.penalty_max:
-                wide, res = search(tier, relaxed, p.flank_for(relaxed))
-                if wide and (not pairs or wide[0]["penalty"] < pairs[0]["penalty"]):
-                    pairs = wide
-                if not pairs and tier == "clean" and not relaxed and res:
-                    result["explain"] = "; ".join(
-                        f"{k.split('_')[1].lower()}: {res.get(k, '')}"
-                        for k in ("PRIMER_LEFT_EXPLAIN", "PRIMER_RIGHT_EXPLAIN", "PRIMER_PAIR_EXPLAIN"))
+            if m.kind == "region":
+                pairs, res = search(tier, relaxed, 0)
+                if not pairs:
+                    pairs, res = search(tier, relaxed, p.flank_for(relaxed))
+            else:
+                pairs, res = search(tier, relaxed, p.flank_for(relaxed))
+            if not pairs and tier == "clean" and not relaxed and res:
+                result["explain"] = "; ".join(
+                    f"{k.split('_')[1].lower()}: {res.get(k, '')}"
+                    for k in ("PRIMER_LEFT_EXPLAIN", "PRIMER_RIGHT_EXPLAIN", "PRIMER_PAIR_EXPLAIN"))
             if pairs:
                 pairs = pairs[:n_cand]
                 for k, b in enumerate(pairs, 1):
@@ -1009,7 +1012,9 @@ def amplicon_notes(g: dict, a: dict) -> list[str]:
     b, n = a["pairs"][0], []
     if b["placement"] == "spanning":
         what = "region" if g["kind"] == "region" else f'exon ({a["exon_len"]} bp)'
-        n.append(f"Amplicon reaches into the flanking sequence: no pair fits inside the {what}")
+        n.append("Amplicon reaches into the flanking sequence: no pair fits inside the region"
+                 if g["kind"] == "region" else
+                 f"Amplicon reaches into the flanking intron: the lowest-penalty pair for this {what}")
     if b["amp_snps"]:
         n.append(f'{len(b["amp_snps"])} common SNP(s) between the primers (not under them): '
                  + ", ".join(s["rs"] for s in b["amp_snps"][:5]))
@@ -1249,7 +1254,7 @@ def write_excel(results: list[dict], errors: list[dict], p: Params, path: str, a
 MEANING = {
     "target": "coding = the coding part of each exon is the target; full = the whole exon",
     "min_overlap": "The amplicon must cover at least this many target bases (or the whole target if it is shorter)",
-    "flank": "When no pair fits inside the exon, primers may reach this far into the flanking intron (bp)",
+    "flank": "Primers may reach this far into the flanking intron (bp); the lowest penalty wins, wherever it sits",
     "product_min": "Minimal amplicon length (bp) - Primer Express: 50",
     "product_max": "Maximal amplicon length (bp) - Primer Express: 150",
     "product_opt": "Amplicon length that costs no penalty (bp) - Primer Express: 50",
@@ -1344,7 +1349,7 @@ def main(argv=None, ensembl=None, ucsc=None):
     g1.add_argument("--min-overlap", type=int, default=d.min_overlap,
                     help="target bases the amplicon must cover (default 40, or all if fewer)")
     g1.add_argument("--flank", type=int, default=d.flank,
-                    help="how far primers may reach into the intron when no exonic pair exists (default 100)")
+                    help="how far primers may reach into the intron; the lowest penalty wins (default 100)")
     g2 = ap.add_argument_group("Primer Express rules (Primer3)")
     g2.add_argument("--product", type=int, nargs=3, metavar=("MIN", "OPT", "MAX"),
                     default=[d.product_min, d.product_opt, d.product_max],

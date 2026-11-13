@@ -255,6 +255,18 @@ def test_full_exon_target():
     assert (a["target_start"], a["target_end"]) == (5000, 5300)
 
 
+def test_lowest_penalty_wins_wherever_it_sits():
+    """No pair inside the exon may beat the chosen one; a pair in the intron
+    may be chosen only if it is strictly better."""
+    for sym in GENES:
+        m, g = run(sym)
+        for a in g["amplicons"]:
+            best = a["pairs"][0]
+            assert all(best["penalty"] <= b["penalty"] for b in a["candidates"])
+            if best["placement"] == "spanning":
+                assert not any(b["placement"] == "exonic" and b["penalty"] == best["penalty"] for b in a["candidates"])
+
+
 def test_coding_target_is_covered_even_with_a_long_utr():
     """Exon 4 of PLUSGENE is 601 bp, of which only 251 are coding: the
     amplicon must cover coding bases, not sit in the 3' UTR."""

@@ -57,9 +57,9 @@ Every one of the export's 47 primers passes all of these rules as applied here.
   Express's own secondary-structure test is not published; in SYBR Green any dimer fluoresces, so
   this check stays strict.
 - **Ranking around the penalty.** SNP- and repeat-free primers come first and pairs specific in
-  in-silico PCR are preferred; the penalty orders the rest. A pair inside the exon is preferred
-  while its penalty stays under 100; past that, primers may reach into the intron if that gives a
-  lower penalty.
+  in-silico PCR are preferred; the penalty orders the rest. The search covers the exon and 100 bp
+  of intron on each side, as if that whole stretch had been pasted into Primer Express, and the
+  lowest penalty wins wherever it sits.
 - **The cut-off is a flag, not a filter.** When no pair under 100 passes the checks, the best one
   is still given, marked Check with its penalty.
 

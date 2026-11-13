@@ -44,9 +44,9 @@ For each gene in `genes.txt` (the exonprimer-batch panel, 6,437 genes) and each 
   |R length − 20| — reproduced exactly, so the shortest amplicon wins (most are 50–55 bp) and the
   usual "< 100" cut-off applies;
 - hairpins and primer-dimers refused as in Primer3, in a PCR buffer;
-- the amplicon covers at least 40 target bases, or the whole exon when it is shorter; it stays
-  **inside the exon** unless that costs a penalty of 100 or more, then reaches into the intron
-  (≤ 100 bp) — a 31-bp exon is spanned, so all of it is interrogated;
+- the amplicon covers at least 40 target bases, or the whole exon when it is shorter; the primers
+  may sit in the exon or up to 100 bp into the intron, and the **lowest penalty wins** wherever it
+  sits — a 31-bp exon is spanned, so all of it is interrogated;
 - common SNPs and repeats are masked **before** design: on genomic DNA, a SNP under a primer can
   drop one allele and **mimic a heterozygous deletion**;
 - every candidate pair goes through genome-wide in-silico PCR; specific pairs are preferred.

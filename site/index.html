@@ -137,7 +137,7 @@ async function init(){
   Pairs are ranked on <b>Primer Express's penalty</b>, ${p.wt_product} × (amplicon − ${p.product_opt}) + |F length − ${p.size_opt}| + |R length − ${p.size_opt}|,
   so the shortest amplicon wins; a best pair at ${p.penalty_max} or more is flagged.
   The amplicon covers at least ${p.min_overlap} bases of the ${p.target==='coding'?'coding part of the exon':'exon'} (the whole of it when shorter).
-  It stays inside the exon unless that costs a penalty of ${p.penalty_max} or more; then primers may reach up to ${p.flank} bp into the intron.
+  Primers may sit in the exon or up to ${p.flank} bp into the intron, and the lowest penalty wins wherever it sits (inside the exon on a tie); a custom region's pair stays inside it when it can.
   Hairpins and primer-dimers are refused as in Primer3 (structure Tm above 47 °C, in a PCR buffer).<br>
   <b>Safeguards.</b> Common SNPs (dbSNP 155, MAF ≥ ${p.snp_maf}) and repeats are masked before design: on genomic DNA a SNP under a primer can drop one allele and mimic a heterozygous deletion.
   Tiers: <i>clean</i> = no SNP and no repeat under the primers; <i>repeat-5p</i> = repeat only in a primer's 5′ part; <i>snp-5p</i> = SNP present but never in the last ${p.snp_3prime} bases.
