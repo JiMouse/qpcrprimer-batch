@@ -11,8 +11,8 @@
 :root{
   color-scheme:light;
   --bg:#f8f8fa; --panel:#ffffff; --sunken:#f2f1f6; --ink:#1d1b26; --muted:#625f70; --line:#e0deea;
-  --accent:#4b3a8c; --accent-soft:#ebe7f6; --exon:#4b3a8c;
-  --fwd:#c9eccf; --fwd-ink:#17602a; --rev:#fde2c8; --rev-ink:#8a3d00;
+  --accent:#4b3a8c; --accent-soft:#ebe7f6; --exon:#1f6f66; --exon-soft:#e2f0ed;
+  --fwd:#c9eccf; --fwd-ink:#17602a; --rev:#e7dcf6; --rev-ink:#5a2d91;
   --warn:#8a5200; --warn-soft:#fdf1dc; --ok:#1d7a3a; --ok-soft:#dcf1e1; --bad:#b3261e; --bad-soft:#f9dedc;
 }
 *{box-sizing:border-box}
@@ -42,7 +42,7 @@ h1 span{color:var(--accent)}
 .ex{min-width:40px;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);
   font:500 13px "IBM Plex Mono",monospace;cursor:default;text-align:center}
 .ex.coding{border-color:var(--exon);color:var(--exon);cursor:pointer}
-.ex.coding:hover{background:var(--accent-soft)}
+.ex.coding:hover{background:var(--exon-soft)}
 .ex.sel{background:var(--exon);color:var(--panel)}
 .ex.check{border-color:var(--warn);color:var(--warn)}
 .ex.check.sel{background:var(--warn);color:var(--panel)}
