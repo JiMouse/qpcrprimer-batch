@@ -9,17 +9,23 @@ The workflow it automates is the manual one:
                                           chr:start-end from --regions
   2. extract the DNA sequence          -> Ensembl, soft-masked, batched
   3. design in Primer Express          -> Primer3 under Primer Express's
-                                          quantification rules (below)
-  4. keep the lowest-penalty pairs     -> Primer3 penalty; every pair already
-                                          meets all the rules
+                                          quantification rules, Tm formula and
+                                          penalty (below)
+  4. keep the lowest-penalty pairs     -> ranked on Primer Express's penalty;
+                                          a best pair at 100 or more is flagged
   5. check for SNPs                    -> dbSNP 155 Common masked before design
   6. check uniqueness (In-Silico PCR)  -> UCSC isPcr genome-wide on every
                                           candidate; segmental duplications
                                           flagged
 
 Primer Express quantification guidelines, enforced as hard rules:
-  primer Tm 58-60 C (opt 59), GC 30-80 %, no more than two G/C among the last
-  five 3' bases, no run of four identical bases, amplicon 50-150 bp.
+  primer Tm 58-60 C, GC 30-80 %, no more than two G/C among the last five 3'
+  bases, no run of four G (runs of up to five other bases, as Primer Express
+  accepts), amplicon 50-150 bp.
+Measured on Primer Express output and reproduced here:
+  Tm      = Breslauer 1986 nearest-neighbour, Schildkraut salt term,
+            50 mM Na+, 5 nM oligo
+  penalty = 5 x (amplicon - 50) + |F length - 20| + |R length - 20|
 
 Placement (genomic DNA, e.g. exon copy-number confirmation): the amplicon
 must cover at least --min-overlap bases of the target, or the whole target
@@ -48,6 +54,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlencode
+
+from functools import lru_cache
 
 import primer3
 import requests
@@ -80,19 +88,44 @@ def rc(s: str) -> str:
     return s.translate(COMP)[::-1]
 
 
+# Secondary structures are judged as Primer3 judges them by default - the Tm
+# of the structure, at most 47 C - but in a PCR buffer, whatever Tm formula
+# selects the primers: 50 mM Na+, 1.5 mM Mg2+, 0.6 mM dNTP, 50 nM oligo.
+STRUCT_MAX_TM = 47.0
+STRUCT_COND = {"mv_conc": 50.0, "dv_conc": 1.5, "dntp_conc": 0.6, "dna_conc": 50.0}
+
+
+@lru_cache(maxsize=200_000)
+def oligo_ok(seq: str) -> bool:
+    """No hairpin, self-dimer or 3'-end self-dimer above STRUCT_MAX_TM."""
+    return (primer3.calc_hairpin(seq, **STRUCT_COND).tm <= STRUCT_MAX_TM
+            and primer3.calc_homodimer(seq, **STRUCT_COND).tm <= STRUCT_MAX_TM
+            and primer3.calc_end_stability(seq, seq, **STRUCT_COND).tm <= STRUCT_MAX_TM)
+
+
+@lru_cache(maxsize=200_000)
+def pair_ok(f: str, r: str) -> bool:
+    """Both primers clean, and no primer-dimer (any, or 3'-anchored) above STRUCT_MAX_TM."""
+    return (oligo_ok(f) and oligo_ok(r)
+            and primer3.calc_heterodimer(f, r, **STRUCT_COND).tm <= STRUCT_MAX_TM
+            and primer3.calc_end_stability(f, r, **STRUCT_COND).tm <= STRUCT_MAX_TM
+            and primer3.calc_end_stability(r, f, **STRUCT_COND).tm <= STRUCT_MAX_TM)
+
+
 def end_gc(seq: str, n: int = 5) -> int:
     """G/C count among the n 3'-terminal bases (Primer Express allows <= 2)."""
     return sum(c in "GCgc" for c in seq[-n:])
 
 
-def max_run(seq: str) -> int:
-    """Longest run of one identical base."""
+def max_run(seq: str, base: str | None = None) -> int:
+    """Longest run of one identical base (of `base` only, if given)."""
     best = run = 0
     prev = ""
     for c in seq.upper():
         run = run + 1 if c == prev else 1
         prev = c
-        best = max(best, run)
+        if base is None or c == base:
+            best = max(best, run)
     return best
 
 
@@ -278,30 +311,37 @@ class Params:
     target: str = "coding"      # coding = coding part of each exon; full = whole exon
     min_overlap: int = 40       # target bases the amplicon must cover (or all, if fewer)
     flank: int = 100            # how far primers may reach beyond the exon, when they must
-    # amplicon - Primer Express: 50-150 bp, and "a low amplicon length"
+    # amplicon - Primer Express: 50-150 bp
     product_min: int = 50
     product_max: int = 150
-    product_opt: int = 80
-    wt_product: float = 0.01    # penalty per bp away from product_opt
+    # penalty - Primer Express's own, measured on its output (docs/primer-express.md):
+    #   5 x (amplicon - 50) + |F length - 20| + |R length - 20|
+    product_opt: int = 50
+    wt_product: float = 5.0     # penalty per bp above product_opt
+    wt_size: float = 1.0        # penalty per nt away from size_opt, per primer
+    penalty_max: float = 100.0  # the cut-off used with Primer Express; above it the pair is flagged
     # primers - Primer Express quantification guidelines
     tm_min: float = 58.0
     tm_opt: float = 59.0
     tm_max: float = 60.0
-    size_min: int = 18
+    size_min: int = 16
     size_opt: int = 20
-    size_max: int = 28
+    size_max: int = 30
     gc_min: float = 30.0
     gc_max: float = 80.0
     max_end_gc: int = 2         # G/C among the last five 3' bases
-    max_poly_x: int = 3         # longest run of one base (PE: fewer than four G)
+    max_poly_g: int = 3         # longest run of G (Primer Express: fewer than four)
+    max_poly_x: int = 5         # longest run of any other base (Primer Express accepts five)
     gc_clamp: int = 0           # PE has none; a clamp would fight max_end_gc
     max_tm_diff: float = 2.0
-    wt_tm_diff: float = 1.0
-    # Tm conditions (same as exonprimer-batch; see docs/tm.md)
+    # Tm - Primer Express's formula, measured on its output: Breslauer 1986 with
+    # the Schildkraut-Lifson salt term, 50 mM Na+, 5 nM oligo, no Mg2+ (docs/tm.md).
+    # tm_formula "santalucia" uses SantaLucia 1998 and the salt values below as given.
+    tm_formula: str = "primer-express"
     salt_mono: float = 50.0
-    salt_div: float = 1.5
-    dntp: float = 0.6
-    dna_conc: float = 50.0
+    salt_div: float = 0.0
+    dntp: float = 0.0
+    dna_conc: float = 5.0
     num_return: int = 3
     relax: bool = True
     # safeguards
@@ -321,6 +361,20 @@ class Params:
             raise ValueError("target is 'coding' or 'full'")
         if not self.tm_min <= self.tm_opt <= self.tm_max:
             raise ValueError("Tm must be MIN <= OPT <= MAX")
+        if self.tm_formula not in ("primer-express", "santalucia"):
+            raise ValueError("tm_formula is 'primer-express' or 'santalucia'")
+
+    def tm_args(self) -> dict:
+        """The Tm settings for primer3.calc_tm, as the design uses them."""
+        pe = self.tm_formula == "primer-express"
+        return {"mv_conc": self.salt_mono, "dv_conc": self.salt_div, "dntp_conc": self.dntp,
+                "dna_conc": self.dna_conc, "tm_method": "breslauer" if pe else "santalucia",
+                "salt_corrections_method": "schildkraut" if pe else "santalucia"}
+
+    def penalty(self, product: int, f_len: int, r_len: int) -> float:
+        """Primer Express's penalty, which the Primer3 weights below reproduce."""
+        return (self.wt_product * abs(product - self.product_opt)
+                + self.wt_size * (abs(f_len - self.size_opt) + abs(r_len - self.size_opt)))
 
     def primer3_global(self, relaxed: bool = False) -> dict:
         g = {
@@ -332,10 +386,16 @@ class Params:
             "PRIMER_GC_CLAMP": self.gc_clamp, "PRIMER_MAX_END_GC": self.max_end_gc,
             "PRIMER_PAIR_MAX_DIFF_TM": self.max_tm_diff, "PRIMER_MAX_POLY_X": self.max_poly_x,
             "PRIMER_MAX_NS_ACCEPTED": 0, "PRIMER_EXPLAIN_FLAG": 1,
-            "PRIMER_PAIR_WT_DIFF_TM": self.wt_tm_diff,
+            # Penalty = Primer Express's: only amplicon size and primer length
+            # count; Tm, GC and Tm difference are rules, not scores.
+            "PRIMER_WT_TM_LT": 0.0, "PRIMER_WT_TM_GT": 0.0,
+            "PRIMER_WT_SIZE_LT": self.wt_size, "PRIMER_WT_SIZE_GT": self.wt_size,
+            "PRIMER_PAIR_WT_DIFF_TM": 0.0,
             "PRIMER_PRODUCT_OPT_SIZE": self.product_opt,
             "PRIMER_PAIR_WT_PRODUCT_SIZE_LT": self.wt_product,
             "PRIMER_PAIR_WT_PRODUCT_SIZE_GT": self.wt_product,
+            "PRIMER_TM_FORMULA": 0 if self.tm_formula == "primer-express" else 1,
+            "PRIMER_SALT_CORRECTIONS": 0 if self.tm_formula == "primer-express" else 1,
             # alternatives that are really different pairs, not a 1-bp shift
             "PRIMER_MIN_LEFT_THREE_PRIME_DISTANCE": 3, "PRIMER_MIN_RIGHT_THREE_PRIME_DISTANCE": 3,
             "PRIMER_SALT_MONOVALENT": self.salt_mono, "PRIMER_SALT_DIVALENT": self.salt_div,
@@ -353,6 +413,20 @@ class Params:
 
     def product_range(self, relaxed: bool = False) -> tuple[int, int]:
         return self.product_min, self.product_max + (50 if relaxed else 0)
+
+    def product_bands(self, relaxed: bool = False, cap: int | None = None) -> list[list[int]]:
+        """Amplicon sizes in bands, shortest first. Primer3 fills the first band
+        before trying the next, which matches a penalty driven by amplicon
+        size - and is ~25 times faster than one wide range, where primers that
+        all score 0 leave Primer3 nothing to prune its pair search with."""
+        lo, hi = self.product_range(relaxed)
+        if cap is not None:
+            hi = min(hi, cap)
+        edges = sorted({lo, *(e for e in (lo + 11, lo + 26, lo + 51, lo + 101) if lo < e <= hi), hi + 1})
+        return [[a, b - 1] for a, b in zip(edges, edges[1:])]
+
+    def max_g_run(self, relaxed: bool = False) -> int:
+        return self.max_poly_g + (1 if relaxed else 0)
 
     def flank_for(self, relaxed: bool = False) -> int:
         """How far primers may reach beyond the exon: 50 bp more when relaxed,
@@ -694,52 +768,70 @@ def needed_overlap(t: Target, p: Params) -> int:
 
 def design_target(m: GeneModel, t: Target, p: Params) -> dict:
     """Try, in order of preference, until a pair is found:
-    normal settings before relaxed; clean before repeat-5p before snp-5p;
-    inside the exon before reaching into the flanking intron."""
+    normal settings before relaxed; clean before repeat-5p before snp-5p.
+    Within a tier, a pair inside the exon is kept if its penalty is under the
+    Primer Express cut-off; otherwise primers may reach into the flanking
+    intron, and the lower-penalty pair of the two searches wins."""
     need = needed_overlap(t, p)
     n_cand = max(6, 2 * p.num_return)
     result = {"pairs": [], "relaxed": False, "tier": "", "placement": "", "explain": ""}
     tiers = list(TIERS) if p.fallback else ["clean"]
-    for relaxed in ([False, True] if p.relax else [False]):
+
+    def search(tier: str, relaxed: bool, extra: int) -> tuple[list, dict]:
         g = p.primer3_global(relaxed)
-        pmin, pmax = p.product_range(relaxed)
+        pmin, _ = p.product_range(relaxed)
         smax = g["PRIMER_MAX_SIZE"]
+        w0 = max(0, t.elo - extra)
+        w1 = min(len(m.seq) - 1, t.ehi + extra)
+        if w1 - w0 + 1 < pmin:
+            return [], {}
+        # The left primer may not start past the point where the amplicon
+        # could still cover `need` target bases, nor the right primer end
+        # before it; exact overlap is checked again on every pair below.
+        left_end = min(w1, t.hi - need + smax)
+        right_start = max(w0, t.lo + need - smax)
+        if left_end - w0 + 1 < g["PRIMER_MIN_SIZE"] or w1 - right_start + 1 < g["PRIMER_MIN_SIZE"]:
+            return [], {}
+        # Primer3's thermodynamic structure checks, inside its pair search,
+        # cost ~50x the search itself once the penalty no longer ranks primers
+        # by Tm. The search runs without them and they are applied below, by
+        # the same thermodynamic model, to the candidates only.
+        gg = dict(g, PRIMER_PRODUCT_SIZE_RANGE=p.product_bands(relaxed, w1 - w0 + 1),
+                  PRIMER_LOWERCASE_MASKING=1, PRIMER_NUM_RETURN=50,
+                  PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT=0,
+                  PRIMER_MAX_SELF_ANY=9999, PRIMER_MAX_SELF_END=9999,
+                  PRIMER_PAIR_MAX_COMPL_ANY=9999, PRIMER_PAIR_MAX_COMPL_END=9999)
+        res = primer3.design_primers(
+            {"SEQUENCE_ID": t.name,
+             "SEQUENCE_TEMPLATE": masked_template(m, w0, w1, tier, p.snp_3prime),
+             "SEQUENCE_PRIMER_PAIR_OK_REGION_LIST": [[0, left_end - w0 + 1, right_start - w0, w1 - right_start + 1]]},
+            gg)
+        pairs = [pair_record(m, t, res, i, w0) for i in range(res.get("PRIMER_PAIR_NUM_RETURNED", 0))]
+        g_max = p.max_g_run(relaxed)
+        pairs = [b for b in pairs if b["target_cov"] >= need
+                 and max_run(b["f_seq"], "G") <= g_max and max_run(b["r_seq"], "G") <= g_max
+                 and pair_ok(b["f_seq"], b["r_seq"])]
+        if tier == "snp-5p":
+            pairs = [b for b in pairs if all(s["pos3"] > p.snp_3prime for s in b["f_snps"] + b["r_snps"])]
+        return pairs, res
+
+    for relaxed in ([False, True] if p.relax else [False]):
         for tier in tiers:
-            for placement, extra in (("exonic", 0), ("spanning", p.flank_for(relaxed))):
-                w0 = max(0, t.elo - extra)
-                w1 = min(len(m.seq) - 1, t.ehi + extra)
-                if w1 - w0 + 1 < pmin:
-                    continue
-                # The left primer may not start past the point where the amplicon
-                # could still cover `need` target bases, nor the right primer end
-                # before it; exact overlap is checked again on every pair below.
-                left_end = min(w1, t.hi - need + smax)
-                right_start = max(w0, t.lo + need - smax)
-                if left_end - w0 + 1 < g["PRIMER_MIN_SIZE"] or w1 - right_start + 1 < g["PRIMER_MIN_SIZE"]:
-                    continue
-                gg = dict(g, PRIMER_PRODUCT_SIZE_RANGE=[[pmin, min(pmax, w1 - w0 + 1)]],
-                          PRIMER_LOWERCASE_MASKING=1,
-                          PRIMER_NUM_RETURN=50)
-                res = primer3.design_primers(
-                    {"SEQUENCE_ID": t.name,
-                     "SEQUENCE_TEMPLATE": masked_template(m, w0, w1, tier, p.snp_3prime),
-                     "SEQUENCE_PRIMER_PAIR_OK_REGION_LIST": [[0, left_end - w0 + 1, right_start - w0, w1 - right_start + 1]]},
-                    gg)
-                pairs = [pair_record(m, t, res, i, w0) for i in range(res.get("PRIMER_PAIR_NUM_RETURNED", 0))]
-                pairs = [b for b in pairs if b["target_cov"] >= need]
-                if tier == "snp-5p":
-                    pairs = [b for b in pairs
-                             if all(s["pos3"] > p.snp_3prime for s in b["f_snps"] + b["r_snps"])]
-                if pairs:
-                    pairs = pairs[:n_cand]
-                    for k, b in enumerate(pairs, 1):
-                        b["rank"] = k
-                    result.update(pairs=pairs, relaxed=relaxed, tier=tier, placement=placement)
-                    return result
-                if tier == "clean" and not relaxed and placement == "spanning":
+            pairs, _ = search(tier, relaxed, 0)
+            if not pairs or pairs[0]["penalty"] >= p.penalty_max:
+                wide, res = search(tier, relaxed, p.flank_for(relaxed))
+                if wide and (not pairs or wide[0]["penalty"] < pairs[0]["penalty"]):
+                    pairs = wide
+                if not pairs and tier == "clean" and not relaxed and res:
                     result["explain"] = "; ".join(
                         f"{k.split('_')[1].lower()}: {res.get(k, '')}"
                         for k in ("PRIMER_LEFT_EXPLAIN", "PRIMER_RIGHT_EXPLAIN", "PRIMER_PAIR_EXPLAIN"))
+            if pairs:
+                pairs = pairs[:n_cand]
+                for k, b in enumerate(pairs, 1):
+                    b["rank"] = k
+                result.update(pairs=pairs, relaxed=relaxed, tier=tier, placement=pairs[0]["placement"])
+                return result
     if not result["explain"]:
         result["explain"] = "not enough sequence around the target"
     return result
@@ -821,7 +913,7 @@ def design_gene(m: GeneModel, p: Params, assembly: str) -> dict:
         sd = [s for s in m.segdups if s["start"] <= tg2 and s["end"] >= tg1]
         rec = {"label": t.label, "name": t.name, "exons": [t.exon],
                "target_start": tg1, "target_end": tg2, "target_len": t.hi - t.lo + 1,
-               "exon_len": t.ehi - t.elo + 1, "min_cov": needed_overlap(t, p),
+               "exon_len": t.ehi - t.elo + 1, "min_cov": needed_overlap(t, p), "penalty_max": p.penalty_max,
                "relaxed": r["relaxed"], "tier": r["tier"], "placement": r["placement"],
                "candidates": r["pairs"],
                "segdups": [{"other": o, "identity": i} for o, i in
@@ -877,6 +969,9 @@ def amplicon_warnings(g: dict, a: dict) -> list[str]:
             w.append(f'In-silico PCR: {len(ip["off_target"])} off-target product(s): ' + "; ".join(ip["off_target"][:3]))
         if not ip.get("on_target"):
             w.append("In-silico PCR: expected product not found")
+    if b["penalty"] >= a.get("penalty_max", 100):
+        w.append(f'Primer Express penalty {b["penalty"]:g} (cut-off {a.get("penalty_max", 100):g}): '
+                 f'no pair with a shorter amplicon passed the checks')
     if a["relaxed"]:
         w.append("Relaxed settings (outside the Primer Express rules)")
     for kind in ("snps", "repeats", "segdups"):
@@ -990,7 +1085,7 @@ PRIMER_COLS = ["Gene / region", "Exon", "Status", "Transcript", "RefSeq (MANE)",
                "F 3' G/C (last 5)",
                "Reverse name", "Reverse primer (5'→3')", "R len", "R Tm (°C)", "R Tm UCSC (°C)", "R GC %",
                "R 3' G/C (last 5)",
-               "ΔTm F-R (°C)", "Product (bp)", "Product Tm (°C)", "Penalty (Primer3)", "Placement",
+               "ΔTm F-R (°C)", "Product (bp)", "Product Tm (°C)", "Penalty (Primer Express)", "Placement",
                "Target bases covered", "Chr", "Amplicon start", "Amplicon end",
                "Design tier", "Common SNPs under F", "Common SNPs under R", "Common SNPs between primers",
                "Repeat bases F/R", "Segmental duplication", "In-silico PCR", "Warnings", "Notes", "UCSC check"]
@@ -1073,7 +1168,7 @@ def write_excel(results: list[dict], errors: list[dict], p: Params, path: str, a
     ws2 = wb.create_sheet("Alternatives")
     header(ws2, ["Gene / region", "Exon", "Rank", "Forward primer (5'→3')", "F Tm (°C)", "F Tm UCSC (°C)",
                  "Reverse primer (5'→3')", "R Tm (°C)", "R Tm UCSC (°C)", "ΔTm F-R (°C)",
-                 "Product (bp)", "Product Tm (°C)", "Penalty (Primer3)", "Placement", "SNPs F", "SNPs R",
+                 "Product (bp)", "Product Tm (°C)", "Penalty (Primer Express)", "Placement", "SNPs F", "SNPs R",
                  "Repeat bases F/R", "In-silico PCR", "Amplicon start", "Amplicon end"],
            [12, 7, 6, 30, 9, 11, 30, 9, 11, 9, 9, 9, 9, 10, 24, 24, 9, 28, 12, 12])
     for g in results:
@@ -1133,8 +1228,10 @@ MEANING = {
     "flank": "When no pair fits inside the exon, primers may reach this far into the flanking intron (bp)",
     "product_min": "Minimal amplicon length (bp) - Primer Express: 50",
     "product_max": "Maximal amplicon length (bp) - Primer Express: 150",
-    "product_opt": "Preferred amplicon length (bp); Primer Express advises a low amplicon length",
-    "wt_product": "Penalty per bp away from product_opt",
+    "product_opt": "Amplicon length that costs no penalty (bp) - Primer Express: 50",
+    "wt_product": "Penalty per bp above product_opt - Primer Express: 5",
+    "wt_size": "Penalty per nt a primer is away from size_opt - Primer Express: 1",
+    "penalty_max": "A best pair at or above this penalty is flagged - the cut-off used with Primer Express",
     "tm_min": "Minimal primer Tm (°C) - Primer Express: 58",
     "tm_opt": "Optimal primer Tm (°C) - Primer Express: 59",
     "tm_max": "Maximal primer Tm (°C) - Primer Express: 60",
@@ -1142,16 +1239,18 @@ MEANING = {
     "gc_min": "Minimal primer GC % - Primer Express: 30",
     "gc_max": "Maximal primer GC % - Primer Express: 80",
     "max_end_gc": "Most G/C allowed among the five 3'-terminal bases - Primer Express: 2",
-    "max_poly_x": "Longest run of one base - Primer Express: fewer than four consecutive G (applied to every base)",
+    "max_poly_g": "Longest run of G - Primer Express: fewer than four consecutive G",
+    "max_poly_x": "Longest run of any base - Primer Express accepts five C or A in a row",
+    "tm_formula": "primer-express = Breslauer 1986 + Schildkraut salt term at 50 mM Na+, 5 nM oligo, as "
+                  "measured on Primer Express output; santalucia = SantaLucia 1998 with the salt values below",
     "gc_clamp": "Primer3 GC clamp (0: Primer Express has none, and it would fight max_end_gc)",
     "max_tm_diff": "Largest |Tm(F) - Tm(R)| accepted for a pair (°C)",
-    "wt_tm_diff": "Primer3 penalty weight on the pair Tm difference",
     "salt_mono": "Monovalent cations for the Tm calculation (mM)",
     "salt_div": "Divalent cations, Mg2+, for the Tm calculation (mM)",
     "dntp": "Total dNTP for the Tm calculation (mM)",
     "dna_conc": "Annealing oligo concentration for the Tm calculation (nM)",
     "num_return": "Pairs kept per target (best + alternatives)",
-    "relax": "If no pair is found, retry once with relaxed settings (Tm ±1 °C, 3' G/C ≤ 3, product ≤ 200 bp, "
+    "relax": "If no pair is found, retry once with relaxed settings (Tm ±1 °C, 3' G/C ≤ 3, runs one longer, product ≤ 200 bp, "
              "primers up to flank + 50 bp into the intron) - flagged",
     "snp_maf": f"SNPs from UCSC {SNP_TRACK} at or above this MAF are avoided under primers",
     "snp_3prime": "A SNP is never accepted within this many bases of a primer's 3' end",
@@ -1170,9 +1269,9 @@ def parameter_rows(p: Params, assembly: str, ispcr_ran: bool) -> list[list]:
     rows += [[f"Tier: {k}", "", v] for k, v in TIERS.items()]
     rows += [[f"Placement: {k}", "", v] for k, v in PLACEMENTS.items()]
     rows += [["Status OK", "", "Clean tier, normal settings, no segmental duplication, no off-target product"],
-             ["Penalty", "", "Primer3's penalty (lower is better). Not Primer Express's penalty, which is "
-                             "proprietary and on another scale: every pair here already meets all of the "
-                             "Primer Express rules above"],
+             ["Penalty", "", "Primer Express's penalty, reproduced: 5 x (amplicon - 50) + |F length - 20| + "
+                             "|R length - 20|. Lower is better; pairs are ranked on it after the SNP, repeat "
+                             "and in-silico PCR checks"],
              ["Generated", time.strftime("%Y-%m-%d %H:%M"),
               f"qpcrprimer_batch.py v{__version__}, primer3-py {primer3.__version__}"]]
     return rows
@@ -1201,6 +1300,12 @@ def write_json(results, errors, p: Params, out_dir: str, assembly: str, ispcr_ra
 # --------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------
+def salt_params(salt, formula: str) -> dict:
+    if salt is None:
+        salt = [50.0, 0.0, 0.0, 5.0] if formula == "primer-express" else [50.0, 1.5, 0.6, 50.0]
+    return dict(salt_mono=salt[0], salt_div=salt[1], dntp=salt[2], dna_conc=salt[3])
+
+
 def main(argv=None, ensembl=None, ucsc=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("genes", nargs="?", help="text file with one gene symbol per line (optional transcript ID after it)")
@@ -1218,18 +1323,25 @@ def main(argv=None, ensembl=None, ucsc=None):
                     help="how far primers may reach into the intron when no exonic pair exists (default 100)")
     g2 = ap.add_argument_group("Primer Express rules (Primer3)")
     g2.add_argument("--product", type=int, nargs=3, metavar=("MIN", "OPT", "MAX"),
-                    default=[d.product_min, d.product_opt, d.product_max], help="amplicon bp (default 50 80 150)")
+                    default=[d.product_min, d.product_opt, d.product_max],
+                    help="amplicon bp; OPT is where the penalty starts (default 50 50 150)")
     g2.add_argument("--tm", type=float, nargs=3, metavar=("MIN", "OPT", "MAX"), default=[d.tm_min, d.tm_opt, d.tm_max])
     g2.add_argument("--size", type=int, nargs=3, metavar=("MIN", "OPT", "MAX"), default=[d.size_min, d.size_opt, d.size_max])
     g2.add_argument("--gc", type=float, nargs=2, metavar=("MIN", "MAX"), default=[d.gc_min, d.gc_max])
     g2.add_argument("--max-end-gc", type=int, default=d.max_end_gc, help="G/C among the last 5 bases (default 2)")
-    g2.add_argument("--max-poly-x", type=int, default=d.max_poly_x, help="longest run of one base (default 3)")
+    g2.add_argument("--max-poly-g", type=int, default=d.max_poly_g, help="longest run of G (default 3)")
+    g2.add_argument("--max-poly-x", type=int, default=d.max_poly_x, help="longest run of any base (default 5)")
+    g2.add_argument("--penalty-max", type=float, default=d.penalty_max,
+                    help="flag a best pair at or above this Primer Express penalty (default 100)")
     g2.add_argument("--max-tm-diff", type=float, default=d.max_tm_diff)
     g2.add_argument("--alternatives", type=int, default=d.num_return, help="pairs to keep per target")
     g2.add_argument("--no-relax", action="store_true")
+    g2.add_argument("--tm-formula", choices=["primer-express", "santalucia"], default=d.tm_formula,
+                    help="primer-express (default) reproduces Primer Express's Tm; santalucia = SantaLucia 1998 "
+                         "under --salt (default for it: 50 1.5 0.6 50, a PCR buffer)")
     g2.add_argument("--salt", type=float, nargs=4, metavar=("MONO_MM", "DIV_MM", "DNTP_MM", "DNA_NM"),
-                    default=[d.salt_mono, d.salt_div, d.dntp, d.dna_conc],
-                    help="Tm conditions: monovalent mM, divalent mM, dNTP mM, oligo nM (default 50 1.5 0.6 50)")
+                    help="Tm conditions: monovalent mM, divalent mM, dNTP mM, oligo nM "
+                         "(default 50 0 0 5 for primer-express)")
     g3 = ap.add_argument_group("SNPs, repeats, uniqueness")
     g3.add_argument("--snp-maf", type=float, default=d.snp_maf, help="avoid SNPs with MAF >= this (default 0.01)")
     g3.add_argument("--snp-3prime", type=int, default=d.snp_3prime, help="no SNP allowed in this many 3' bases")
@@ -1250,10 +1362,11 @@ def main(argv=None, ensembl=None, ucsc=None):
                    product_min=a.product[0], product_opt=a.product[1], product_max=a.product[2],
                    tm_min=a.tm[0], tm_opt=a.tm[1], tm_max=a.tm[2],
                    size_min=a.size[0], size_opt=a.size[1], size_max=a.size[2], gc_min=a.gc[0], gc_max=a.gc[1],
-                   max_end_gc=a.max_end_gc, max_poly_x=a.max_poly_x, max_tm_diff=a.max_tm_diff,
+                   max_end_gc=a.max_end_gc, max_poly_g=a.max_poly_g, max_poly_x=a.max_poly_x,
+                   max_tm_diff=a.max_tm_diff, penalty_max=a.penalty_max, tm_formula=a.tm_formula,
                    num_return=a.alternatives, relax=not a.no_relax, snp_maf=a.snp_maf,
                    snp_3prime=a.snp_3prime, fallback=not a.strict, ispcr_max_size=a.ispcr_max_size,
-                   salt_mono=a.salt[0], salt_div=a.salt[1], dntp=a.salt[2], dna_conc=a.salt[3])
+                   **salt_params(a.salt, a.tm_formula))
         regions = read_region_list(a.regions) if a.regions else []
     except ValueError as ex:
         ap.error(str(ex))

@@ -160,9 +160,13 @@ def check_pair(m, g, a, b, p):
         assert p.tm_min <= tm <= p.tm_max, (s, tm)
         assert p.gc_min <= gc <= p.gc_max, (s, gc)
         assert qpb.end_gc(s) <= p.max_end_gc, s
-        assert qpb.max_run(s) <= p.max_poly_x, s
+        assert qpb.max_run(s) <= p.max_poly_x and qpb.max_run(s, "G") <= p.max_poly_g, s
         assert p.size_min <= len(s) <= p.size_max
     assert b["d_tm"] <= p.max_tm_diff + 1e-9
+    # the penalty is Primer Express's
+    assert b["penalty"] == p.penalty(b["product"], b["f_len"], b["r_len"]), b
+    import primer3
+    assert b["f_tm"] == round(primer3.calc_tm(b["f_seq"], **p.tm_args()), 1)
 
 
 def check_gene(sym, p=None, ucsc=None):
@@ -185,20 +189,48 @@ def test_defaults_are_the_primer_express_rules():
     assert (p.tm_min, p.tm_opt, p.tm_max) == (58.0, 59.0, 60.0)
     assert (p.gc_min, p.gc_max) == (30.0, 80.0)
     assert (p.product_min, p.product_max) == (50, 150)
-    assert p.size_opt == 20 and p.max_end_gc == 2 and p.max_poly_x == 3 and p.max_tm_diff == 2.0
+    assert p.size_opt == 20 and p.max_end_gc == 2 and p.max_poly_g == 3 and p.max_tm_diff == 2.0
     g = p.primer3_global()
-    assert g["PRIMER_MAX_END_GC"] == 2 and g["PRIMER_MAX_POLY_X"] == 3 and g["PRIMER_GC_CLAMP"] == 0
+    assert g["PRIMER_MAX_END_GC"] == 2 and g["PRIMER_GC_CLAMP"] == 0
     assert (g["PRIMER_MIN_TM"], g["PRIMER_OPT_TM"], g["PRIMER_MAX_TM"]) == (58.0, 59.0, 60.0)
+    # Tm: Breslauer + Schildkraut, 50 mM Na+, 5 nM oligo, no Mg2+
+    assert (g["PRIMER_TM_FORMULA"], g["PRIMER_SALT_CORRECTIONS"]) == (0, 0)
+    assert (g["PRIMER_SALT_MONOVALENT"], g["PRIMER_SALT_DIVALENT"], g["PRIMER_DNTP_CONC"],
+            g["PRIMER_DNA_CONC"]) == (50.0, 0.0, 0.0, 5.0)
+
+
+def test_penalty_is_primer_express():
+    """5 x (amplicon - 50) + |F length - 20| + |R length - 20|: the formula fits
+    all 200 sets of a Primer Express export exactly (docs/primer-express.md)."""
+    p = qpb.Params()
+    assert p.penalty(55, 17, 18) == 30 and p.penalty(55, 16, 18) == 31
+    assert p.penalty(67, 19, 26) == 92 and p.penalty(76, 22, 21) == 133
+    assert p.penalty(50, 20, 20) == 0
+
+
+def test_primer_express_tm():
+    """Primer Express Tm = Breslauer 1986 with the Schildkraut salt term at
+    50 mM Na+ and 5 nM oligo - the formula UCSC In-Silico PCR uses at 50 nM,
+    so UCSC reads a few degrees higher for the same oligo."""
+    import primer3
+    p = qpb.Params()
+    assert round(primer3.calc_tm("CCACACCTGACCTGTAGCTG", **p.tm_args()), 1) == 55.3
+    for s in ("CCACACCTGACCTGTAGCTG", "GCAAAGGCAACAGAGACACG", "TGAAGCTCTTCGGCATGGAT"):
+        assert 3 < qpb.tm_ucsc(s) - primer3.calc_tm(s, **p.tm_args()) < 5, s
 
 
 def test_helpers():
     assert qpb.end_gc("AAAAAAAATTTGC") == 2 and qpb.end_gc("AAAAGCGCG") == 5
     assert qpb.max_run("ACGGGGT") == 4 and qpb.max_run("ACGT") == 1
+    assert qpb.max_run("ACCCCCAGGT", "G") == 2 and qpb.max_run("ACCCCCAGGT") == 5
 
 
 def test_plus_strand():
     _, g = check_gene("PLUSGENE")
-    assert all(a["status"] == "OK" and a["tier"] == "clean" for a in g["amplicons"])
+    assert all(a["tier"] == "clean" for a in g["amplicons"])
+    # only the penalty may flag one: a 31-bp exon can need a longer amplicon
+    assert all(a["status"] == "OK" for a in g["amplicons"] if a["label"] != "2")
+    assert all(w.startswith("Primer Express penalty") for w in amp(g, "2")["warnings"])
     # long exons: the amplicon stays inside the exon
     for lab in ("1", "3", "4"):
         assert amp(g, lab)["placement"] == "exonic", lab
@@ -231,6 +263,14 @@ def test_coding_target_is_covered_even_with_a_long_utr():
     assert (a["target_start"], a["target_end"]) == (20000, 20250)
     for b in a["candidates"]:
         assert b["target_cov"] >= 40 and b["start"] <= 20250 - 39
+
+
+def test_product_bands():
+    p = qpb.Params()
+    assert p.product_bands() == [[50, 60], [61, 75], [76, 100], [101, 150]]
+    assert p.product_bands(True) == [[50, 60], [61, 75], [76, 100], [101, 150], [151, 200]]
+    assert p.product_bands(cap=70) == [[50, 60], [61, 70]]
+    assert p.product_bands(cap=50) == [[50, 50]]
 
 
 def test_impossible_settings_rejected():
@@ -266,9 +306,10 @@ def test_snp_under_best_primer_is_avoided():
         _, g = check_gene(sym, ucsc=uc)
         a = amp(g, "3")
         b = a["pairs"][0]
-        assert a["tier"] == "clean" and a["status"] == "OK"
-        assert not b["f_snps"] and not b["r_snps"]
+        assert a["tier"] == "clean" and not b["f_snps"] and not b["r_snps"]
         assert (b["f_seq"], b["r_seq"]) != (b0["f_seq"], b0["r_seq"])
+        # the only possible flag: a longer amplicon, now over the penalty cut-off
+        assert all(w.startswith("Primer Express penalty") for w in a["warnings"]), a["warnings"]
 
 
 def dense_snps():
@@ -544,15 +585,42 @@ def test_ucsc_tm_matches_what_hgpcr_prints():
     assert qpb.tm_ucsc("GCAAAGGCAACAGAGACACG") == 62.0
 
 
-def test_salt_conditions_reach_primer3():
-    p = qpb.Params(salt_div=0.0, dntp=0.0)
-    g = p.primer3_global()
-    assert g["PRIMER_SALT_DIVALENT"] == 0.0 and g["PRIMER_DNTP_CONC"] == 0.0
-    _, gg = run("PLUSGENE", p)
+def test_tm_settings_reach_primer3():
     import primer3
-    for b in amp(gg, "3")["pairs"]:
-        assert b["f_tm"] == round(primer3.calc_tm(b["f_seq"], mv_conc=50, dv_conc=0, dntp_conc=0,
-                                                  dna_conc=50), 1)
+    for p in (qpb.Params(), qpb.Params(tm_formula="santalucia", salt_div=1.5, dntp=0.6, dna_conc=50)):
+        _, gg = run("PLUSGENE", p)
+        for b in amp(gg, "3")["pairs"]:
+            assert b["f_tm"] == round(primer3.calc_tm(b["f_seq"], **p.tm_args()), 1), p.tm_formula
+    assert qpb.salt_params(None, "santalucia") == dict(salt_mono=50.0, salt_div=1.5, dntp=0.6, dna_conc=50.0)
+    assert qpb.salt_params(None, "primer-express")["dna_conc"] == 5.0
+
+
+def test_structure_checks():
+    """Hairpins and dimers are refused as Primer3 refuses them (Tm of the
+    structure above 47 C), in a PCR buffer."""
+    assert qpb.pair_ok("TGAAGCTCTTCGGCATGGAT", "ACGAAGTCCATGAGCAGCAT")
+    assert not qpb.oligo_ok("GCGCGCATATATGCGCGC")                            # hairpin / self-dimer
+    assert not qpb.pair_ok("TGAAGCTCTTCGGCATGGAT", "AGCATCCATGCCGAAGAG")     # 3' ends pair
+    for sym in GENES:
+        _, g = run(sym)
+        assert all(qpb.pair_ok(b["f_seq"], b["r_seq"]) for a in g["amplicons"] for b in a["candidates"])
+
+
+def test_no_run_of_four_g():
+    p = qpb.Params()
+    for sym in GENES:
+        _, g = run(sym, p)
+        for a in g["amplicons"]:
+            for b in a["candidates"]:
+                assert "GGGG" not in b["f_seq"] and "GGGG" not in b["r_seq"]
+
+
+def test_penalty_cut_off_is_flagged():
+    _, g = run("PLUSGENE", qpb.Params(penalty_max=0))
+    a = amp(g, "3")
+    assert a["status"] == "CHECK" and any("Primer Express penalty" in w for w in a["warnings"])
+    _, g = run("PLUSGENE")
+    assert not any("Primer Express penalty" in w for w in amp(g, "3")["warnings"])
 
 
 def test_noncoding_transcript_is_refused_clearly():
@@ -600,21 +668,33 @@ def test_merge_parts():
         assert sum(1 for _ in wb["Primers"].iter_rows()) == 1 + 4 + 4 + 1
 
 
-def test_compare_primer_express(capsys=None):
+def test_compare_primer_express():
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
     import compare_primer_express as cpe
+    import primer3
+    p = qpb.Params()
+    F, R = "TGAAGCTCTTCGGCATGGAT", "ACGAAGTCCATGAGCAGCAT"
+    tf, tr = (round(primer3.calc_tm(x, **p.tm_args())) for x in (F, R))
     with tempfile.TemporaryDirectory() as td:
-        f = Path(td) / "pe.tsv"
-        f.write_text("Name\tSequence\tTm\tPenalty\n"
-                     "A_F\tCCACACCTGACCTGTAGCTG\t59,0\t12\n"
-                     "A_R\tGCAAAGGCAACAGAGACACG\t59.5\n"
-                     "B_F\tGGGGCCCCGGGGCCCCGGGC\n")
-        rows = cpe.read_rows(str(f))
-        assert [r["name"] for r in rows] == ["A_F", "A_R", "B_F"]
-        assert rows[0]["pe_tm"] == 59.0 and rows[0]["pe_penalty"] == 12 and rows[2]["pe_tm"] is None
-        c = cpe.check("GGGGCCCCGGGGCCCCGGGC", qpb.Params())
+        # a Primer Express export, with a probe and a stray space in a sequence
+        exp = Path(td) / "x_Primers.TXT"
+        head = "Start\tLength\tTm\t%GC\tPrimer\t" * 3 + "Length\tTm\t%GC\tTa\tPenalty"
+        row = (f"10\t20\t{tf}\t50\t{F[:9]} {F[9:]}\t31\t16\t70\t60\tCCACCTTCCAAGTGAA\t"
+               f"60\t20\t{tr}\t50\t{R}\t55\t80\t52\t60\t25.0")
+        exp.write_text(head + "\r\n" + row + "\r\n", encoding="utf-8")
+        primers, sets = cpe.read_file(str(exp))
+        assert primers == {F: tf, R: tr}
+        assert sets == [{"F": F, "R": R, "product": 55, "penalty": 25.0}]
+        assert p.penalty(55, 20, 20) == 25
+        assert cpe.main([str(exp)]) == 0
+        # the plain list
+        tsv = Path(td) / "pe.tsv"
+        tsv.write_text("Name\tSequence\tTm\nA_F\tCCACACCTGACCTGTAGCTG\t59,0\nB_F\tGGGGCCCCGGGGCCCCGGGC\n")
+        primers, sets = cpe.read_file(str(tsv))
+        assert primers == {"CCACACCTGACCTGTAGCTG": 59.0, "GGGGCCCCGGGGCCCCGGGC": None} and sets == []
+        c = cpe.check("GGGGCCCCGGGGCCCCGGGC", p)
         assert not c["rules"]["3'G/C"] and not c["rules"]["run"] and not c["rules"]["GC"]
-        assert cpe.main([str(f)]) == 0
+        assert cpe.main([str(tsv)]) == 0
 
 
 if __name__ == "__main__":
