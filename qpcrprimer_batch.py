@@ -396,8 +396,10 @@ class Params:
             "PRIMER_PAIR_WT_PRODUCT_SIZE_GT": self.wt_product,
             "PRIMER_TM_FORMULA": 0 if self.tm_formula == "primer-express" else 1,
             "PRIMER_SALT_CORRECTIONS": 0 if self.tm_formula == "primer-express" else 1,
-            # alternatives that are really different pairs, not a 1-bp shift
-            "PRIMER_MIN_LEFT_THREE_PRIME_DISTANCE": 3, "PRIMER_MIN_RIGHT_THREE_PRIME_DISTANCE": 3,
+            # Primer3 may reuse a primer across the pairs it returns: a good primer
+            # whose first partner fails the structure checks must stay available.
+            # Distinct alternatives are chosen afterwards (distinct_pairs).
+            "PRIMER_MIN_LEFT_THREE_PRIME_DISTANCE": -1, "PRIMER_MIN_RIGHT_THREE_PRIME_DISTANCE": -1,
             "PRIMER_SALT_MONOVALENT": self.salt_mono, "PRIMER_SALT_DIVALENT": self.salt_div,
             "PRIMER_DNTP_CONC": self.dntp, "PRIMER_DNA_CONC": self.dna_conc,
         }
@@ -795,24 +797,29 @@ def design_target(m: GeneModel, t: Target, p: Params) -> dict:
         # Primer3's thermodynamic structure checks, inside its pair search,
         # cost ~50x the search itself once the penalty no longer ranks primers
         # by Tm. The search runs without them and they are applied below, by
-        # the same thermodynamic model, to the candidates only.
-        gg = dict(g, PRIMER_PRODUCT_SIZE_RANGE=p.product_bands(relaxed, w1 - w0 + 1),
-                  PRIMER_LOWERCASE_MASKING=1, PRIMER_NUM_RETURN=50,
-                  PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT=0,
-                  PRIMER_MAX_SELF_ANY=9999, PRIMER_MAX_SELF_END=9999,
-                  PRIMER_PAIR_MAX_COMPL_ANY=9999, PRIMER_PAIR_MAX_COMPL_END=9999)
-        res = primer3.design_primers(
-            {"SEQUENCE_ID": t.name,
-             "SEQUENCE_TEMPLATE": masked_template(m, w0, w1, tier, p.snp_3prime),
-             "SEQUENCE_PRIMER_PAIR_OK_REGION_LIST": [[0, left_end - w0 + 1, right_start - w0, w1 - right_start + 1]]},
-            gg)
-        pairs = [pair_record(m, t, res, i, w0) for i in range(res.get("PRIMER_PAIR_NUM_RETURNED", 0))]
+        # the same thermodynamic model, to the candidates only. The amplicon
+        # size bands are walked here, shortest first, until enough pairs pass.
         g_max = p.max_g_run(relaxed)
-        pairs = [b for b in pairs if b["target_cov"] >= need
-                 and max_run(b["f_seq"], "G") <= g_max and max_run(b["r_seq"], "G") <= g_max
-                 and pair_ok(b["f_seq"], b["r_seq"])]
-        if tier == "snp-5p":
-            pairs = [b for b in pairs if all(s["pos3"] > p.snp_3prime for s in b["f_snps"] + b["r_snps"])]
+        template = masked_template(m, w0, w1, tier, p.snp_3prime)
+        ok_region = [[0, left_end - w0 + 1, right_start - w0, w1 - right_start + 1]]
+        pairs, res = [], {}
+        for band in p.product_bands(relaxed, w1 - w0 + 1):
+            gg = dict(g, PRIMER_PRODUCT_SIZE_RANGE=[band],
+                      PRIMER_LOWERCASE_MASKING=1, PRIMER_NUM_RETURN=100,
+                      PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT=0,
+                      PRIMER_MAX_SELF_ANY=9999, PRIMER_MAX_SELF_END=9999,
+                      PRIMER_PAIR_MAX_COMPL_ANY=9999, PRIMER_PAIR_MAX_COMPL_END=9999)
+            r = primer3.design_primers({"SEQUENCE_ID": t.name, "SEQUENCE_TEMPLATE": template,
+                                        "SEQUENCE_PRIMER_PAIR_OK_REGION_LIST": ok_region}, gg)
+            res = res or r
+            got = [pair_record(m, t, r, i, w0) for i in range(r.get("PRIMER_PAIR_NUM_RETURNED", 0))]
+            got = [b for b in got if b["target_cov"] >= need
+                   and max_run(b["f_seq"], "G") <= g_max and max_run(b["r_seq"], "G") <= g_max
+                   and (tier != "snp-5p" or all(s["pos3"] > p.snp_3prime for s in b["f_snps"] + b["r_snps"]))
+                   and pair_ok(b["f_seq"], b["r_seq"])]
+            pairs = distinct_pairs(sorted(pairs + got, key=lambda b: b["penalty"]))
+            if len(pairs) >= n_cand:
+                break
         return pairs, res
 
     for relaxed in ([False, True] if p.relax else [False]):
@@ -835,6 +842,22 @@ def design_target(m: GeneModel, t: Target, p: Params) -> dict:
     if not result["explain"]:
         result["explain"] = "not enough sequence around the target"
     return result
+
+
+def distinct_pairs(pairs: list[dict], d: int = 3) -> list[dict]:
+    """Keep pairs in order, dropping one whose forward or reverse primer ends
+    within d bases of the 3' end of a primer already kept, as Primer3's
+    PRIMER_MIN_*_THREE_PRIME_DISTANCE does - but only among pairs that passed
+    every check."""
+    kept, f_ends, r_ends = [], [], []
+    for b in pairs:
+        fe, re_ = b["f_end3"], b["r_end3"]
+        if any(abs(fe - x) < d for x in f_ends) or any(abs(re_ - x) < d for x in r_ends):
+            continue
+        kept.append(b)
+        f_ends.append(fe)
+        r_ends.append(re_)
+    return kept
 
 
 def primer_features(m: GeneModel, lo: int, hi: int, three_prime_hi: bool) -> tuple[list, int, list]:
@@ -883,6 +906,7 @@ def pair_record(m: GeneModel, t: Target, res: dict, i: int, w0: int) -> dict:
     return {
         "rank": i + 1,
         "f_seq": f_seq, "r_seq": r_seq,
+        "f_end3": f_hi, "r_end3": r_lo,     # local 3'-end positions, for distinct_pairs
         "f_tm": f_tm, "r_tm": r_tm,
         "f_tm_ucsc": tm_ucsc(f_seq), "r_tm_ucsc": tm_ucsc(r_seq),
         "d_tm": round(abs(f_tm - r_tm), 1),

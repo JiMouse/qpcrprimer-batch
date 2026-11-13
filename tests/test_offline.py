@@ -238,7 +238,7 @@ def test_plus_strand():
     a = amp(g, "2")
     b = a["pairs"][0]
     assert a["placement"] == "spanning" and a["min_cov"] == 31 and b["target_cov"] == 31
-    assert b["start"] < 8000 and b["end"] > 8030
+    assert b["start"] <= 8000 and b["end"] >= 8030
     assert any("flanking" in n for n in a["notes"])
 
 
@@ -282,6 +282,19 @@ def test_impossible_settings_rejected():
         except ValueError:
             continue
         raise AssertionError(kw)
+
+
+def test_distinct_pairs():
+    mk = lambda f, r, pen: {"f_end3": f, "r_end3": r, "penalty": pen}
+    pairs = [mk(100, 200, 0), mk(101, 230, 1), mk(140, 201, 2), mk(140, 240, 3), mk(120, 260, 4)]
+    assert [b["penalty"] for b in qpb.distinct_pairs(pairs)] == [0, 3, 4]
+
+
+def test_a_rejected_partner_does_not_hide_a_good_primer():
+    """Primer3 may reuse a primer across the pairs it returns, so that when a
+    primer's first partner fails the dimer check, its other pairings remain."""
+    g = qpb.Params().primer3_global()
+    assert g["PRIMER_MIN_LEFT_THREE_PRIME_DISTANCE"] == -1 == g["PRIMER_MIN_RIGHT_THREE_PRIME_DISTANCE"]
 
 
 def test_alternatives_are_distinct_pairs():

@@ -50,14 +50,17 @@ output (see [Primer Express](primer-express.md)):
 
 The penalty is Primer3's own, with weights set to give exactly Primer Express's number, so the
 shortest amplicon wins: with these rules most exons get a 50–55 bp amplicon. Alternatives must
-differ from each other by at least 3 bases at their 3′ ends, so they are genuinely different pairs.
+differ from each other by at least 3 bases at the 3′ end of each primer, so they are genuinely
+different pairs.
 
 **Hairpins and primer-dimers** are refused as Primer3 refuses them — any hairpin, self-dimer or
 primer-dimer, anywhere or anchored on a 3′ end, whose Tm exceeds 47 °C — computed in a PCR buffer
 (50 mM Na⁺, 1.5 mM Mg²⁺, 0.6 mM dNTP, 50 nM primer). In SYBR Green any dimer fluoresces, so this
-is checked on every candidate. Primer3 searches pairs without these checks and they are applied to
-its candidates afterwards, with the same thermodynamic model: the result is the same, ~50 times
-faster. Primer Express sets no GC clamp, and a clamp would fight the 3′ G/C rule, so none is
+is checked on every candidate. Primer3 searches pairs without these checks, one amplicon-size band
+at a time from the shortest, and they are applied to its candidates afterwards with the same
+thermodynamic model — many times faster than inside its search. Primer3 may reuse a primer across
+the pairs it returns, so a good primer whose first partner fails a check is still paired with
+others; the "3 bases apart" rule for alternatives is applied after the checks. Primer Express sets no GC clamp, and a clamp would fight the 3′ G/C rule, so none is
 applied.
 
 If nothing is found, the design is retried once with relaxed settings (Tm 57–61 °C, ≤ 3 G/C at

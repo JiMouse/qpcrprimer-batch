@@ -13,7 +13,8 @@ included, so the fast paths are the ones under test). It checks:
 - the Primer Express penalty, pinned on sets of a real export, and equal to Primer3's penalty for
   every candidate; the Primer Express Tm formula, equal to the Tm of every candidate; the amplicon
   size bands; the penalty cut-off flag;
-- hairpin and primer-dimer refusal, and that no candidate carries one;
+- hairpin and primer-dimer refusal, and that no candidate carries one; distinct alternatives chosen
+  after the checks, and Primer3 allowed to reuse a primer whose first partner fails them;
 - that each primer matches the genome at its reported coordinates, on both strands, and that the
   published amplicon is that genomic sequence;
 - placement: a long exon gets an amplicon inside it; a 31-bp exon is spanned and covered entirely;
