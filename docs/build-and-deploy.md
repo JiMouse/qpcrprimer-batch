@@ -44,10 +44,9 @@ may need `xattr -d com.apple.quarantine tools/isPcr`.
 The requests to Ensembl and UCSC are exactly those of exonprimer-batch — the MANE track, batched
 sequence and three UCSC annotation calls per gene — so the waiting is the same; its
 [build page](https://github.com/JiMouse/exonprimer-batch/blob/main/docs/build-and-deploy.md)
-has the measurements. The design itself costs more here, because each exon is tried inside the
-exon before the flanks and the 58–60 °C window is narrow: about **0.7 s per gene** measured on
-150 random genes of the panel, so roughly 80 minutes of computation for the whole list, spread
-over the parallel jobs.
+has the measurements. The design itself is quick: about **0.25 s per gene**, measured on 60
+random genes of the panel, so under half an hour of computation for the whole list, spread over
+the parallel jobs.
 
 ## Publish the website on GitHub
 

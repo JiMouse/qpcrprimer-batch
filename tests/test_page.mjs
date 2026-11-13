@@ -57,10 +57,11 @@ const entry = g => ({gene:g.gene, kind:g.kind, transcript:g.transcript, refseq:g
   amplicons:g.amplicons.length, ok:1, check:0, failures:g.failures.length});
 const INDEX = {
   assembly:'GRCh38', ucsc_db:'hg38', generated:'2026-11-12', version:'1.0.0',
-  params:{target:'coding', min_overlap:40, flank:100, product_min:50, product_max:150, product_opt:80,
-    tm_min:58, tm_opt:59, tm_max:60, size_min:18, size_opt:20, size_max:28, gc_min:30, gc_max:80,
-    max_end_gc:2, max_poly_x:3, max_tm_diff:2, snp_maf:0.01, snp_3prime:5, salt_mono:50, salt_div:1.5,
-    dntp:0.6, dna_conc:50, num_return:3},
+  params:{target:'coding', min_overlap:40, flank:100, product_min:50, product_max:150, product_opt:50,
+    wt_product:5, wt_size:1, penalty_max:100,
+    tm_min:58, tm_opt:59, tm_max:60, size_min:16, size_opt:20, size_max:30, gc_min:30, gc_max:80,
+    max_end_gc:2, max_poly_g:3, max_poly_x:5, max_tm_diff:2, tm_formula:'primer-express',
+    snp_maf:0.01, snp_3prime:5, salt_mono:50, salt_div:0, dntp:0, dna_conc:5, num_return:3},
   ispcr:true, tiers:{}, errors:[{gene:'BROKEN', error:'lookup failed'}],
   genes:[entry(PLUSG), entry(MINUSG), entry(REG1)],
 };
@@ -109,6 +110,9 @@ ok(els['note'].innerHTML.includes('Primer Express'), 'method note names the rule
 ok(els['note'].innerHTML.includes('58–60'), 'and the Tm window');
 ok(els['note'].innerHTML.includes('BROKEN'), 'genes that failed are listed');
 ok(!els['note'].innerHTML.includes('undefined'), 'no undefined in the method note');
+ok(els['note'].innerHTML.includes("Primer Express's penalty") && els['note'].innerHTML.includes('5 × (amplicon − 50)'),
+   'the note gives the Primer Express penalty formula');
+ok(els['note'].innerHTML.includes('Breslauer'), 'and the Tm formula');
 
 /* ---- gene view ---- */
 await go('PLUSG');
@@ -123,6 +127,7 @@ ok(has('PLUSG_qE2F') && has('PLUSG_qE2R'), 'primer names are GENE_qE<n>F/R');
 ok(has('ACGTACGTACGTACGTACGT') && has('GGAAACCCTTTGGGAAACCC'), 'both primers are shown');
 ok(has('81.4 °C'), 'product Tm (melt peak) is shown');
 ok(has('0.62'), 'penalty is shown');
+ok(!has('class="hot">Penalty'), 'a penalty under the cut-off is not highlighted');
 ok(has('inside the exon'), 'placement is stated');
 ok(has('2/5'), "3' G/C count is shown");
 ok(!has('class="hot"'), 'nothing is highlighted when every value is inside the rules');
@@ -137,8 +142,10 @@ ok(has('rs456'), 'notes are shown');
 ok(has('rs123') && has('8 nt from 3'), 'the SNP under a primer is shown under the sequence');
 
 FILES['data/genes/MINUSG.json'].amplicons[0].pairs[0].f_tm = 57.2;   // as a relaxed pair can be
+FILES['data/genes/MINUSG.json'].amplicons[0].pairs[0].penalty = 118;
 await go('MINUSG/2');
 ok(has('<td class="hot">57.2</td>'), 'a Tm outside the window is highlighted');
+ok(has('class="hot">Penalty<b>118'), 'a penalty at or above the cut-off is highlighted');
 ok(has('MINUSG_qE2') && has('chr<b>8</b> (−)'), 'minus-strand gene renders');
 
 await go('REG1');

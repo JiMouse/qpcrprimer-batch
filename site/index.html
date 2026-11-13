@@ -129,19 +129,23 @@ async function init(){
   $('#meta').innerHTML = `${fmt(nG)} genes${nR?` · ${fmt(nR)} region${nR>1?'s':''}`:''} · ${esc(META.assembly)} · built ${esc(META.generated)}`;
   $('#genelist').innerHTML = META.genes.map(g=>`<option value="${esc(g.gene)}">${g.kind==='region'?'custom region':esc(g.transcript)+(g.refseq?' · '+esc(g.refseq):'')}</option>`).join('');
   const p = META.params;
-  $('#note').innerHTML = `<b>Design.</b> One qPCR (SYBR Green) primer pair per coding exon of the MANE Select transcript, designed with Primer3 under the
-  Primer Express quantification rules: primer Tm ${p.tm_min}–${p.tm_max} °C (opt ${p.tm_opt}), GC ${p.gc_min}–${p.gc_max} %,
-  no more than ${p.max_end_gc} G/C among the last five 3′ bases, no run of more than ${p.max_poly_x} identical bases,
-  ΔTm ≤ ${p.max_tm_diff} °C, amplicon ${p.product_min}–${p.product_max} bp (shorter preferred).
-  The amplicon covers at least ${p.min_overlap} bases of the ${p.target==='coding'?'coding part of the exon':'exon'} (the whole of it when shorter);
-  it is sought inside the exon first, and reaches up to ${p.flank} bp into the intron only when no exonic pair exists.
-  Pairs are ranked by Primer3's penalty — not Primer Express's, which is proprietary and on another scale; every pair already meets all of the rules above.<br>
+  const pe = (p.tm_formula||'primer-express') === 'primer-express';
+  $('#note').innerHTML = `<b>Design.</b> One qPCR (SYBR Green) primer pair per coding exon of the MANE Select transcript, designed with Primer3 to reproduce
+  Primer Express: primer Tm ${p.tm_min}–${p.tm_max} °C, GC ${p.gc_min}–${p.gc_max} %,
+  no more than ${p.max_end_gc} G/C among the last five 3′ bases, no run of ${(p.max_poly_g||3)+1} G, ΔTm ≤ ${p.max_tm_diff} °C,
+  amplicon ${p.product_min}–${p.product_max} bp.
+  Pairs are ranked on <b>Primer Express's penalty</b>, ${p.wt_product} × (amplicon − ${p.product_opt}) + |F length − ${p.size_opt}| + |R length − ${p.size_opt}|,
+  so the shortest amplicon wins; a best pair at ${p.penalty_max} or more is flagged.
+  The amplicon covers at least ${p.min_overlap} bases of the ${p.target==='coding'?'coding part of the exon':'exon'} (the whole of it when shorter).
+  It stays inside the exon unless that costs a penalty of ${p.penalty_max} or more; then primers may reach up to ${p.flank} bp into the intron.
+  Hairpins and primer-dimers are refused as in Primer3 (structure Tm above 47 °C, in a PCR buffer).<br>
   <b>Safeguards.</b> Common SNPs (dbSNP 155, MAF ≥ ${p.snp_maf}) and repeats are masked before design: on genomic DNA a SNP under a primer can drop one allele and mimic a heterozygous deletion.
   Tiers: <i>clean</i> = no SNP and no repeat under the primers; <i>repeat-5p</i> = repeat only in a primer's 5′ part; <i>snp-5p</i> = SNP present but never in the last ${p.snp_3prime} bases.
   Targets in segmental duplications are flagged. ${META.ispcr ? 'Every candidate pair was checked genome-wide by in-silico PCR (isPcr); specific pairs are preferred.' : 'Genome-wide in-silico PCR was <b>not</b> run for this build — use the UCSC link.'}
-  <b>OK</b> = clean tier, Primer Express settings, no homology alert, a single in-silico PCR product; <b>Check</b> = read the listed warnings.<br>
-  <b>Tm.</b> SantaLucia nearest-neighbour Tm at ${p.salt_mono}&nbsp;mM&nbsp;Na⁺, ${p.salt_div}&nbsp;mM&nbsp;Mg²⁺, ${p.dntp}&nbsp;mM&nbsp;dNTP, ${p.dna_conc}&nbsp;nM primer.
-  Primer Express's own Tm formula is not published, so its numbers can differ by a degree or two for the same oligo. Product Tm is an estimate of the melt-curve peak.`
+  <b>OK</b> = clean tier, Primer Express settings, penalty under ${p.penalty_max}, no homology alert, a single in-silico PCR product; <b>Check</b> = read the listed warnings.<br>
+  <b>Tm.</b> ${pe ? `Primer Express's formula, measured on its output: Breslauer 1986 nearest-neighbour with the Schildkraut salt term, ${p.salt_mono}&nbsp;mM&nbsp;Na⁺, ${p.dna_conc}&nbsp;nM oligo — the same numbers Primer Express shows.`
+               : `SantaLucia nearest-neighbour Tm at ${p.salt_mono}&nbsp;mM&nbsp;Na⁺, ${p.salt_div}&nbsp;mM&nbsp;Mg²⁺, ${p.dntp}&nbsp;mM&nbsp;dNTP, ${p.dna_conc}&nbsp;nM primer.`}
+  Tm UCSC is what UCSC In-Silico PCR prints for the same oligo. Product Tm is an estimate of the melt-curve peak.`
     + (META.errors && META.errors.length ? `<br>Not processed: ${META.errors.map(e=>esc(e.gene)).join(', ')}.` : '');
   route();
 }
@@ -248,7 +252,7 @@ function renderAmp(gene, a){
     ${a.warnings.length?`<ul class="warns">${a.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
     ${notes.length?`<ul class="notes">${notes.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
     <div class="table-scroll"><table>
-      <tr><th></th><th>Name</th><th>Sequence 5′→3′</th><th>Len</th><th title="Nearest-neighbour Tm the design was selected on">Tm °C</th><th title="What UCSC In-Silico PCR prints for the same oligo (older tables, no Mg²⁺)">Tm UCSC</th><th>GC %</th><th title="G or C among the five 3′-terminal bases (Primer Express: at most 2)">3′ G/C</th><th></th></tr>
+      <tr><th></th><th>Name</th><th>Sequence 5′→3′</th><th>Len</th><th title="Primer Express Tm - the value the design was selected on">Tm °C</th><th title="What UCSC In-Silico PCR prints for the same oligo (older tables, no Mg²⁺)">Tm UCSC</th><th>GC %</th><th title="G or C among the five 3′-terminal bases (Primer Express: at most 2)">3′ G/C</th><th></th></tr>
       ${row('F','f',b.f_seq,b.f_len,b.f_tm,b.f_tm_ucsc,b.f_gc,b.f_end_gc,b.f_snps,b.f_repeat,'Forward primer')}
       ${row('R','r',b.r_seq,b.r_len,b.r_tm,b.r_tm_ucsc,b.r_gc,b.r_end_gc,b.r_snps,b.r_repeat,'Reverse primer')}
     </table></div>
@@ -256,7 +260,7 @@ function renderAmp(gene, a){
       <div>Amplicon<b>${fmt(b.product)} bp</b></div>
       <div title="Estimated melt-curve peak">Product Tm<b>${b.product_tm} °C</b></div>
       <div>ΔTm F–R<b>${(+b.d_tm).toFixed(1)} °C</b></div>
-      <div title="Primer3 penalty, lower is better (not the Primer Express scale)">Penalty<b>${b.penalty}</b></div>
+      <div title="Primer Express penalty: 5 × (amplicon − 50) + |F length − 20| + |R length − 20|; lower is better" class="${b.penalty>=(P.penalty_max||100)?'hot':''}">Penalty<b>${b.penalty}</b></div>
       <div>Target covered<b>${b.target_cov}/${a.target_len} bp</b></div>
       <div>In-silico PCR<b>${esc(ispcrText(b.ispcr))}</b></div>
       <div class="wide">Position (${esc(META.assembly)})<b>chr${esc(b.chrom)}:${fmt(b.start)}-${fmt(b.end)}</b></div>

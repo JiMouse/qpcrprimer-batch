@@ -22,41 +22,47 @@ The design is meant for **genomic DNA** — confirming an exon deletion or dupli
 
 - the amplicon must cover at least **40 target bases** (`--min-overlap`), or the **whole target**
   when it is shorter than that;
-- it is first sought **entirely inside the exon** (placement `exonic`);
-- only if no pair fits there may the primers reach up to **100 bp into the flanking intron**
-  (`--flank`; placement `spanning`). An exon shorter than the minimum amplicon, 50 bp, is always
-  spanned, and the amplicon then contains all of it.
+- it is first sought **entirely inside the exon** (placement `exonic`), and kept there while its
+  penalty stays under 100;
+- otherwise the primers may reach up to **100 bp into the flanking intron** (`--flank`; placement
+  `spanning`), and the lower-penalty pair of the two searches wins. An exon shorter than the
+  minimum amplicon, 50 bp, is always spanned, and the amplicon then contains all of it.
 
 A spanning amplicon is not a warning — it is noted, because a deletion that removes only the exon
 and not the primer sites is still detected, but a breakpoint inside the flank would be read
 differently.
 
-## Primer rules
+## Primer rules and penalty
 
-Primer3 is run under the Primer Express quantification guidelines, as hard constraints:
+Primer3 is run to reproduce Primer Express — its rules, its Tm and its penalty, measured on its
+output (see [Primer Express](primer-express.md)):
 
 | | value | flag |
 |---|---|---|
-| primer Tm | 58–60 °C, opt 59 | `--tm` |
-| primer length | 18–28 nt, opt 20 | `--size` |
+| primer Tm (Primer Express formula) | 58–60 °C | `--tm`, `--tm-formula` |
+| primer length | 16–30 nt, 20 costs nothing | `--size` |
 | primer GC | 30–80 % | `--gc` |
 | 3′ end | ≤ 2 G/C among the last five bases | `--max-end-gc` |
-| runs | no run of 4 identical bases | `--max-poly-x` |
+| runs | no run of 4 G; other runs up to 5 | `--max-poly-g`, `--max-poly-x` |
 | pair ΔTm | ≤ 2 °C | `--max-tm-diff` |
-| amplicon | 50–150 bp, 80 preferred | `--product MIN OPT MAX` |
+| amplicon | 50–150 bp | `--product MIN OPT MAX` |
+| **penalty** | **5 × (amplicon − 50) + \|F length − 20\| + \|R length − 20\|**; a best pair at 100 or more is flagged | `--penalty-max` |
 
-Primer3's thermodynamic checks for hairpins, self-dimers and primer-dimers stay at its defaults;
-they matter more in SYBR Green than anywhere, since any dimer fluoresces. Primer Express sets no
-GC clamp, and a clamp would fight the 3′ G/C rule, so none is applied.
+The penalty is Primer3's own, with weights set to give exactly Primer Express's number, so the
+shortest amplicon wins: with these rules most exons get a 50–55 bp amplicon. Alternatives must
+differ from each other by at least 3 bases at their 3′ ends, so they are genuinely different pairs.
 
-Pairs come back ranked by **Primer3's penalty** — how far each primer is from the optimum Tm and
-length, the pair's ΔTm, and the distance from the preferred amplicon size. Alternatives must differ
-from each other by at least 3 bases at their 3′ ends, so they are genuinely different pairs. See
-[Primer Express](primer-express.md) for why this is not Primer Express's penalty.
+**Hairpins and primer-dimers** are refused as Primer3 refuses them — any hairpin, self-dimer or
+primer-dimer, anywhere or anchored on a 3′ end, whose Tm exceeds 47 °C — computed in a PCR buffer
+(50 mM Na⁺, 1.5 mM Mg²⁺, 0.6 mM dNTP, 50 nM primer). In SYBR Green any dimer fluoresces, so this
+is checked on every candidate. Primer3 searches pairs without these checks and they are applied to
+its candidates afterwards, with the same thermodynamic model: the result is the same, ~50 times
+faster. Primer Express sets no GC clamp, and a clamp would fight the 3′ G/C rule, so none is
+applied.
 
 If nothing is found, the design is retried once with relaxed settings (Tm 57–61 °C, ≤ 3 G/C at
-the 3′ end, runs of 4, amplicon up to 200 bp, primers up to 150 bp into the intron), and the
-result is flagged. The extra reach is for short exons between AT-rich introns — PTEN exon 3,
+the 3′ end, runs one base longer, amplicon up to 200 bp, primers up to 150 bp into the intron), and
+the result is flagged. The extra reach is for short exons between AT-rich introns — PTEN exon 3,
 45 bp, has no pair within 100 bp on either side.
 
 ## Safeguards
@@ -77,8 +83,9 @@ Design runs in tiers and stops at the first that works:
 | `snp-5p` | a common SNP lies under a primer, but never in its last 5 bases (`--snp-3prime`) | Check |
 
 The full order of preference is: Primer Express settings before relaxed; `clean` before
-`repeat-5p` before `snp-5p`; inside the exon before spanning. So a clean pair that reaches into
-the intron is preferred to an exonic pair with a SNP under it. `--strict` keeps only `clean`.
+`repeat-5p` before `snp-5p`; then inside the exon before spanning, as long as the exonic pair's
+penalty stays under 100. So a clean pair that reaches into the intron is preferred to an exonic
+pair with a SNP under it. `--strict` keeps only `clean`.
 
 SNPs **between** the primers are listed as a note, not a warning: they do not affect
 amplification, only — slightly — the melt curve.
@@ -96,7 +103,7 @@ amplification, only — slightly — the melt curve.
 
 ## Status
 
-An assay is **OK** only if it is `clean`, designed within the Primer Express rules, outside
-segmental duplications and — when checked — gives exactly one in-silico PCR product, at the
-target. Otherwise it is **Check**, with the reasons listed. A target with no pair at all is
+An assay is **OK** only if it is `clean`, designed within the Primer Express rules with a penalty
+under 100, outside segmental duplications and — when checked — gives exactly one in-silico PCR
+product, at the target. Otherwise it is **Check**, with the reasons listed. A target with no pair at all is
 **FAIL**, with Primer3's own explanation of what it rejected.

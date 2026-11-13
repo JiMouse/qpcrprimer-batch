@@ -1,67 +1,77 @@
 # Primer Express
 
-What the manual workflow used, what this tool reproduces, and what it cannot.
+What the manual workflow used, and how this tool reproduces it.
 [← back to the README](../README.md)
 
 ## What Primer Express does
 
 Primer Express (Applied Biosystems) designs real-time PCR primers, with or without a TaqMan probe,
 from a sequence you paste in. It lists every primer set that meets the parameters of the chosen
-document and sorts them by a **penalty score**, lowest first. The usual practice is the one this
-repository automates: paste the target, take the lowest-penalty sets, then check SNPs and
+document and sorts them by a **penalty score**, lowest first. The manual workflow this repository
+automates: paste the target, keep the sets with a penalty under 100, then check SNPs and
 uniqueness elsewhere.
 
-## The rules, as applied here
+## Measured, not guessed
 
-The Primer Express 3.0 *Getting Started Guide* gives these guidelines for quantification primers;
-each is a hard constraint here:
+Applied Biosystems does not publish the penalty formula or the Tm formula. Both were measured on a
+Primer Express 2.0 export of 200 primer sets (a TaqMan MGB document, 47 distinct primers), and
+`scripts/compare_primer_express.py` repeats the measurement on any export:
 
-| Primer Express guideline | Here |
+| | formula | fit |
+|---|---|---|
+| **Penalty** | **5 × (amplicon − 50) + \|F length − 20\| + \|R length − 20\|** | 200 / 200 sets identical |
+| **Tm** | Breslauer 1986 nearest-neighbour, Schildkraut–Lifson salt term, 50 mM Na⁺, 5 nM oligo, no Mg²⁺ | 44 / 47 primers identical after rounding; the other 3 within 0.5 °C (rounding ties) |
+
+Within the rules, Tm, GC and the probe add nothing to the penalty: **it is almost entirely
+amplicon length**. Five points per base pair above 50 means the usual "penalty < 100" cut-off
+amounts to an amplicon of about 69 bp or less with 20-mer primers.
+
+Both formulas are what this tool uses: Primer3 selects primers on the Primer Express Tm, and its
+penalty weights are set so that Primer3's penalty *is* the Primer Express penalty (only amplicon
+size and primer length weigh; Tm, GC and ΔTm are rules, not scores). The penalty on the site and in
+Excel is the number Primer Express would show for the same pair.
+
+## The rules
+
+| Primer Express | Here |
 |---|---|
-| Tm 58–60 °C, optimum 59 °C | Primer3 `PRIMER_MIN/OPT/MAX_TM` = 58 / 59 / 60 |
+| Tm 58–60 °C | Primer3 `PRIMER_MIN/MAX_TM` = 58 / 60, on the Primer Express Tm |
+| max Tm difference 2 °C | `PRIMER_PAIR_MAX_DIFF_TM` = 2 |
 | GC 30–80 % | `PRIMER_MIN/MAX_GC` = 30 / 80 |
-| optimal length 20 bases | `PRIMER_OPT_SIZE` = 20, range 18–28 |
 | no more than two G/C among the last five 3′ bases | `PRIMER_MAX_END_GC` = 2 |
-| avoid runs of identical bases; fewer than four consecutive G | `PRIMER_MAX_POLY_X` = 3, for every base, not only G |
-| amplicon 50–150 bp, low amplicon length preferred | product 50–150, optimum 80 with a small penalty per bp away |
+| fewer than four consecutive G | no run of 4 G (checked on each candidate) |
+| runs of other bases | up to 5 (`PRIMER_MAX_POLY_X` = 5): the export contains runs of five C and five A |
+| optimal length 20 | penalty 1 per nt away from 20; lengths 16–30 (the export has 16 to 27) |
+| amplicon 50–150 bp | product 50–150; penalty 5 per bp above 50 |
 
-Primers only: this is the SYBR Green workflow. The TaqMan probe rules (Tm 68–70 °C, no G at the
-5′ end, …) are not applied, because no probe is designed.
+Every one of the export's 47 primers passes all of these rules as applied here.
 
-## The penalty score cannot be reproduced
+## Differences that remain, on purpose
 
-Primer Express's penalty is **proprietary**. Thermo Fisher's own description is that it reflects
-how many of the preferred parameters on the Parameters page each design meets — and, in the same
-FAQ, that sets chosen by the TaqMan-specific document already meet the criteria, so *the score does
-not and will not determine the primer/probe performance*. The formula is not published, so the
-"penalty < 100" cut-off has no equivalent here.
+- **No probe.** This is the SYBR Green workflow. A TaqMan document must also fit a probe between
+  the primers, which forces longer amplicons: on TBX1 exon 2 the best set of that export scored 30
+  (55 bp), while the primer-only design here finds a pair scoring 4 (50 bp). Primer Express's own
+  primer-only document should find such pairs too.
+- **Hairpins and primer-dimers** are judged as Primer3 judges them — the structure's Tm must stay
+  under 47 °C — in a PCR buffer (50 mM Na⁺, 1.5 mM Mg²⁺, 0.6 mM dNTP, 50 nM primer). Primer
+  Express's own secondary-structure test is not published; in SYBR Green any dimer fluoresces, so
+  this check stays strict.
+- **Ranking around the penalty.** SNP- and repeat-free primers come first and pairs specific in
+  in-silico PCR are preferred; the penalty orders the rest. A pair inside the exon is preferred
+  while its penalty stays under 100; past that, primers may reach into the intron if that gives a
+  lower penalty.
+- **The cut-off is a flag, not a filter.** When no pair under 100 passes the checks, the best one
+  is still given, marked Check with its penalty.
 
-What this tool does instead:
+## Checking another export
 
-- every reported pair **already meets every rule above** — the role a low Primer Express penalty
-  plays in practice;
-- within that, pairs are ranked by **Primer3's penalty**: distance from the optimum Tm and length,
-  the pair's ΔTm and the distance from the preferred amplicon size. It is on a different scale
-  — on 435 exons of the panel the best pair scored a median of 1.6 and 95 % scored under 7 — so
-  do not compare the two numbers;
-- the ranking that matters most for genomic qPCR comes *after* the penalty: SNP-free and
-  repeat-free primers first, then specific pairs first.
-
-## Tm: calibrating against Primer Express
-
-Primer Express does not publish its Tm formula either, and the 58–60 °C window was set against
-*its* Tm. This tool computes the SantaLucia 1998 nearest-neighbour Tm under the conditions in
-[Tm](tm.md) — the same as exonprimer-batch. If the two formulas differ by a steady offset, the
-window here selects slightly different primers than Primer Express would.
-
-That is measurable with primers Primer Express actually designed. Put them in a tab-separated
-file — name, sequence, the Tm Primer Express showed, and optionally its penalty — and run:
+Save the "Primers" table from Primer Express as text and run:
 
 ```bash
-python scripts/compare_primer_express.py pe_primers.tsv
+python scripts/compare_primer_express.py "MyGene_Primers.TXT"
 ```
 
-It prints this tool's Tm next to Primer Express's for every primer, which rules each primer would
-fail here, and the mean and spread of the Tm difference. A steady offset (small SD) means the
-window should move by the mean, e.g. `--tm 57.5 58.5 59.5`, or the same through the workflow's
-`extra_args`. Fifteen to twenty primers are enough to see it.
+It prints, for every primer, this tool's Tm next to Primer Express's and any rule the primer would
+fail here, then how many Tm and penalties are identical. A plain list (`name <TAB> sequence <TAB>
+Tm`) works too. If another version or document of Primer Express ever disagrees, the summary shows
+it at once.

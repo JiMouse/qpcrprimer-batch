@@ -17,8 +17,8 @@ the Sanger primers; same gene list, same transcripts, same architecture.
 |---|---|---|
 | 1. Define the target | pick a region | each **coding exon** of the MANE Select transcript, or a `chr:start-end` from [`regions.txt`](regions.txt) |
 | 2. Extract the sequence | copy from a browser | Ensembl, soft-masked, batched and cached |
-| 3. Design | Primer Express | Primer3 with the **Primer Express quantification rules as hard constraints** |
-| 4. Rank by penalty | PE penalty < 100 | Primer3 penalty, specific pairs first — see [Primer Express](docs/primer-express.md) for why the two scales differ |
+| 3. Design | Primer Express | Primer3 reproducing Primer Express: its **rules**, its **Tm** and its **penalty**, measured on its output |
+| 4. Rank by penalty | penalty < 100 | **the same penalty**, 5 × (amplicon − 50) + \|F length − 20\| + \|R length − 20\|; a best pair at 100 or more is flagged |
 | 5. Check SNPs | dbSNP by eye | common SNPs (dbSNP 155, MAF ≥ 1 %) **masked before design**; any left under a primer is flagged |
 | 6. Check uniqueness | UCSC In-Silico PCR | **isPcr genome-wide** on every candidate pair, plus segmental-duplication flags |
 
@@ -27,7 +27,7 @@ the Sanger primers; same gene list, same transcripts, same architecture.
 | | |
 |---|---|
 | **[Design method](docs/method.md)** | the rules, where the amplicon may sit, the SNP / repeat / homology tiers, and what makes an assay OK |
-| **[Primer Express](docs/primer-express.md)** | which Primer Express rules are applied and how, why its penalty score cannot be reproduced, and how to calibrate the Tm against primers it designed |
+| **[Primer Express](docs/primer-express.md)** | how its penalty and Tm were measured on its output and are reproduced, its rules, and how to check another export |
 | **[Tm](docs/tm.md)** | the three temperatures reported (primer Tm, Tm UCSC, product Tm) and which to use |
 | **[Building and publishing](docs/build-and-deploy.md)** | local options, custom regions, the sharded GitHub workflow and the data cache |
 | **[Tests](docs/testing.md)** | what each suite pins down |
@@ -38,17 +38,21 @@ For each gene in `genes.txt` (the exonprimer-batch panel, 6,437 genes) and each 
 `regions.txt`:
 
 - **one target per coding exon** (the coding part by default, `--target full` for the whole exon);
-- primers **18–28 nt (opt 20), Tm 58–60 °C (opt 59), GC 30–80 %, ≤ 2 G/C among the last five
-  3′ bases, no run of 4 identical bases, ΔTm ≤ 2 °C**; amplicon **50–150 bp**, shorter preferred;
-- the amplicon covers at least 40 target bases, or the whole exon when it is shorter; it is
-  placed **inside the exon** whenever possible and reaches into the intron (≤ 100 bp) only when it
-  must — a 31-bp exon is spanned, so all of it is interrogated;
+- primers **Tm 58–60 °C on Primer Express's own Tm scale, GC 30–80 %, ≤ 2 G/C among the last five
+  3′ bases, no run of 4 G, ΔTm ≤ 2 °C**; amplicon **50–150 bp**;
+- pairs ranked on **Primer Express's penalty**, 5 × (amplicon − 50) + |F length − 20| +
+  |R length − 20| — reproduced exactly, so the shortest amplicon wins (most are 50–55 bp) and the
+  usual "< 100" cut-off applies;
+- hairpins and primer-dimers refused as in Primer3, in a PCR buffer;
+- the amplicon covers at least 40 target bases, or the whole exon when it is shorter; it stays
+  **inside the exon** unless that costs a penalty of 100 or more, then reaches into the intron
+  (≤ 100 bp) — a 31-bp exon is spanned, so all of it is interrogated;
 - common SNPs and repeats are masked **before** design: on genomic DNA, a SNP under a primer can
   drop one allele and **mimic a heterozygous deletion**;
 - every candidate pair goes through genome-wide in-silico PCR; specific pairs are preferred.
 
 An assay is **OK** only if it is SNP- and repeat-free under both primers, designed within the
-Primer Express rules, outside segmental duplications and specific. Otherwise it is **Check**, with
+Primer Express rules with a penalty under 100, outside segmental duplications and specific. Otherwise it is **Check**, with
 the reasons listed. Every rule has a flag that changes it — see [Design method](docs/method.md).
 
 ## Run locally
@@ -72,7 +76,7 @@ Genome-wide in-silico PCR and the GitHub workflow are in
 
 | Sheet | Content |
 |---|---|
-| Primers | One row per exon or region: status (OK / CHECK / FAIL), names (`GENE_qE3F/R`), sequences, length, Tm, Tm UCSC, GC, **3′ G/C**, ΔTm, **amplicon size and product Tm**, Primer3 penalty, placement (inside the exon or spanning), target bases covered, coordinates, design tier, SNPs under F, under R and between the primers, repeats, segmental duplication, in-silico PCR result, warnings, notes, UCSC link |
+| Primers | One row per exon or region: status (OK / CHECK / FAIL), names (`GENE_qE3F/R`), sequences, length, Tm (Primer Express), Tm UCSC, GC, **3′ G/C**, ΔTm, **amplicon size and product Tm**, **Primer Express penalty**, placement (inside the exon or spanning), target bases covered, coordinates, design tier, SNPs under F, under R and between the primers, repeats, segmental duplication, in-silico PCR result, warnings, notes, UCSC link |
 | Alternatives | The best pair plus 2 alternatives per target, each with its penalty, SNPs and in-silico PCR result |
 | Amplicons | Amplicon sequences, exon UPPER / intron lower |
 | Genes | Transcript, RefSeq, targets, OK / to check / failed per gene or region |
