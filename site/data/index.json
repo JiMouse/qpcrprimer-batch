@@ -1,7 +1,7 @@
 {
  "assembly": "GRCh38",
  "ucsc_db": "hg38",
- "generated": "2026-11-13",
+ "generated": "2026-11-16",
  "version": "1.0.0",
  "params": {
   "target": "coding",
@@ -23,14 +23,15 @@
   "gc_max": 80.0,
   "max_end_gc": 2,
   "max_poly_g": 3,
-  "max_poly_x": 5,
+  "max_poly_x": 6,
   "gc_clamp": 0,
   "max_tm_diff": 2.0,
   "tm_formula": "primer-express",
   "salt_mono": 50.0,
   "salt_div": 0.0,
   "dntp": 0.0,
-  "dna_conc": 5.0,
+  "dna_conc": 4.8,
+  "tm_tol": 0.06,
   "num_return": 3,
   "relax": true,
   "snp_maf": 0.01,
@@ -175,8 +176,8 @@
    "start": 70252298,
    "end": 70289506,
    "amplicons": 20,
-   "ok": 19,
-   "check": 1,
+   "ok": 20,
+   "check": 0,
    "failures": 0
   },
   {
@@ -240,8 +241,8 @@
    "start": 69148007,
    "end": 69228824,
    "amplicons": 37,
-   "ok": 34,
-   "check": 3,
+   "ok": 36,
+   "check": 1,
    "failures": 0
   },
   {
@@ -331,8 +332,8 @@
    "start": 1040107,
    "end": 1065572,
    "amplicons": 46,
-   "ok": 36,
-   "check": 10,
+   "ok": 38,
+   "check": 8,
    "failures": 0
   },
   {
@@ -448,8 +449,8 @@
    "start": 50634881,
    "end": 50692253,
    "amplicons": 31,
-   "ok": 28,
-   "check": 3,
+   "ok": 29,
+   "check": 2,
    "failures": 0
   },
   {
@@ -1358,8 +1359,8 @@
    "start": 38453890,
    "end": 38493142,
    "amplicons": 11,
-   "ok": 9,
-   "check": 2,
+   "ok": 10,
+   "check": 1,
    "failures": 0
   },
   {
@@ -1397,8 +1398,8 @@
    "start": 44619522,
    "end": 44651699,
    "amplicons": 12,
-   "ok": 9,
-   "check": 3,
+   "ok": 10,
+   "check": 2,
    "failures": 0
   },
   {
@@ -1501,8 +1502,8 @@
    "start": 3667975,
    "end": 3682010,
    "amplicons": 22,
-   "ok": 14,
-   "check": 8,
+   "ok": 15,
+   "check": 7,
    "failures": 0
   },
   {
@@ -1605,8 +1606,8 @@
    "start": 77282128,
    "end": 77435034,
    "amplicons": 23,
-   "ok": 20,
-   "check": 3,
+   "ok": 21,
+   "check": 2,
    "failures": 0
   },
   {
@@ -1748,8 +1749,8 @@
    "start": 167809386,
    "end": 167914134,
    "amplicons": 32,
-   "ok": 31,
-   "check": 1,
+   "ok": 32,
+   "check": 0,
    "failures": 0
   },
   {
@@ -1774,8 +1775,8 @@
    "start": 123282296,
    "end": 123449090,
    "amplicons": 21,
-   "ok": 18,
-   "check": 3,
+   "ok": 19,
+   "check": 2,
    "failures": 0
   },
   {
@@ -2242,8 +2243,8 @@
    "start": 99545419,
    "end": 100142590,
    "amplicons": 22,
-   "ok": 18,
-   "check": 4,
+   "ok": 19,
+   "check": 3,
    "failures": 0
   },
   {
@@ -2268,8 +2269,8 @@
    "start": 122923078,
    "end": 123319433,
    "amplicons": 16,
-   "ok": 15,
-   "check": 1,
+   "ok": 16,
+   "check": 0,
    "failures": 0
   },
   {
@@ -2476,8 +2477,8 @@
    "start": 1020120,
    "end": 1056116,
    "amplicons": 36,
-   "ok": 27,
-   "check": 9,
+   "ok": 29,
+   "check": 7,
    "failures": 0
   },
   {
@@ -2515,8 +2516,8 @@
    "start": 85546539,
    "end": 85741954,
    "amplicons": 25,
-   "ok": 23,
-   "check": 2,
+   "ok": 24,
+   "check": 1,
    "failures": 0
   },
   {
@@ -2762,8 +2763,8 @@
    "start": 127866486,
    "end": 127877675,
    "amplicons": 6,
-   "ok": 5,
-   "check": 1,
+   "ok": 6,
+   "check": 0,
    "failures": 0
   },
   {
@@ -3009,8 +3010,8 @@
    "start": 73404287,
    "end": 73421482,
    "amplicons": 14,
-   "ok": 13,
-   "check": 1,
+   "ok": 14,
+   "check": 0,
    "failures": 0
   },
   {
@@ -3074,8 +3075,8 @@
    "start": 100879831,
    "end": 100916626,
    "amplicons": 13,
-   "ok": 11,
-   "check": 2,
+   "ok": 12,
+   "check": 1,
    "failures": 0
   },
   {
@@ -3100,8 +3101,8 @@
    "start": 19648751,
    "end": 19677596,
    "amplicons": 10,
-   "ok": 9,
-   "check": 1,
+   "ok": 10,
+   "check": 0,
    "failures": 0
   },
   {
@@ -3633,8 +3634,8 @@
    "start": 56361452,
    "end": 56425545,
    "amplicons": 14,
-   "ok": 13,
-   "check": 1,
+   "ok": 14,
+   "check": 0,
    "failures": 0
   },
   {
@@ -3893,8 +3894,8 @@
    "start": 41653225,
    "end": 41797622,
    "amplicons": 42,
-   "ok": 41,
-   "check": 1,
+   "ok": 42,
+   "check": 0,
    "failures": 0
   },
   {
@@ -4088,8 +4089,8 @@
    "start": 26332130,
    "end": 26663289,
    "amplicons": 27,
-   "ok": 25,
-   "check": 2,
+   "ok": 26,
+   "check": 1,
    "failures": 0
   },
   {
@@ -4166,8 +4167,8 @@
    "start": 79901146,
    "end": 80073229,
    "amplicons": 17,
-   "ok": 15,
-   "check": 2,
+   "ok": 16,
+   "check": 1,
    "failures": 0
   },
   {
@@ -4192,8 +4193,8 @@
    "start": 121667946,
    "end": 121696980,
    "amplicons": 12,
-   "ok": 10,
-   "check": 2,
+   "ok": 11,
+   "check": 1,
    "failures": 0
   },
   {
@@ -4205,8 +4206,8 @@
    "start": 36512941,
    "end": 36724494,
    "amplicons": 21,
-   "ok": 19,
-   "check": 2,
+   "ok": 20,
+   "check": 1,
    "failures": 0
   },
   {
@@ -4777,8 +4778,8 @@
    "start": 57227729,
    "end": 57273471,
    "amplicons": 22,
-   "ok": 18,
-   "check": 4,
+   "ok": 19,
+   "check": 3,
    "failures": 0
   },
   {
@@ -5063,8 +5064,8 @@
    "start": 11137544,
    "end": 11665920,
    "amplicons": 13,
-   "ok": 12,
-   "check": 1,
+   "ok": 13,
+   "check": 0,
    "failures": 0
   },
   {
@@ -5102,8 +5103,8 @@
    "start": 41883184,
    "end": 41907452,
    "amplicons": 27,
-   "ok": 22,
-   "check": 5,
+   "ok": 23,
+   "check": 4,
    "failures": 0
   },
   {
@@ -5791,8 +5792,8 @@
    "start": 61500556,
    "end": 61714592,
    "amplicons": 25,
-   "ok": 20,
-   "check": 5,
+   "ok": 21,
+   "check": 4,
    "failures": 0
   },
   {
@@ -5856,8 +5857,8 @@
    "start": 130444961,
    "end": 130501274,
    "amplicons": 14,
-   "ok": 11,
-   "check": 3,
+   "ok": 12,
+   "check": 2,
    "failures": 0
   },
   {
@@ -6168,8 +6169,8 @@
    "start": 139726348,
    "end": 139933053,
    "amplicons": 29,
-   "ok": 27,
-   "check": 2,
+   "ok": 28,
+   "check": 1,
    "failures": 0
   },
   {
@@ -6181,8 +6182,8 @@
    "start": 16985958,
    "end": 17011928,
    "amplicons": 29,
-   "ok": 22,
-   "check": 7,
+   "ok": 23,
+   "check": 6,
    "failures": 0
   },
   {
@@ -6337,8 +6338,8 @@
    "start": 203626832,
    "end": 203744081,
    "amplicons": 20,
-   "ok": 19,
-   "check": 1,
+   "ok": 20,
+   "check": 0,
    "failures": 0
   },
   {
@@ -6779,8 +6780,8 @@
    "start": 44191805,
    "end": 44199884,
    "amplicons": 12,
-   "ok": 9,
-   "check": 3,
+   "ok": 10,
+   "check": 2,
    "failures": 0
   },
   {
@@ -6818,8 +6819,8 @@
    "start": 57231023,
    "end": 57235548,
    "amplicons": 7,
-   "ok": 5,
-   "check": 2,
+   "ok": 6,
+   "check": 1,
    "failures": 0
   },
   {
@@ -6896,8 +6897,8 @@
    "start": 287440,
    "end": 352723,
    "amplicons": 10,
-   "ok": 6,
-   "check": 4,
+   "ok": 7,
+   "check": 3,
    "failures": 0
   },
   {
@@ -7234,8 +7235,8 @@
    "start": 33110642,
    "end": 33167336,
    "amplicons": 6,
-   "ok": 5,
-   "check": 1,
+   "ok": 6,
+   "check": 0,
    "failures": 0
   },
   {
@@ -7507,8 +7508,8 @@
    "start": 73440406,
    "end": 73522293,
    "amplicons": 19,
-   "ok": 17,
-   "check": 2,
+   "ok": 18,
+   "check": 1,
    "failures": 0
   },
   {
@@ -7637,8 +7638,8 @@
    "start": 44809103,
    "end": 44821421,
    "amplicons": 15,
-   "ok": 10,
-   "check": 5,
+   "ok": 11,
+   "check": 4,
    "failures": 0
   },
   {
@@ -8092,8 +8093,8 @@
    "start": 47609134,
    "end": 47703277,
    "amplicons": 13,
-   "ok": 10,
-   "check": 3,
+   "ok": 11,
+   "check": 2,
    "failures": 0
   },
   {
@@ -8807,8 +8808,8 @@
    "start": 101349450,
    "end": 101386191,
    "amplicons": 18,
-   "ok": 16,
-   "check": 2,
+   "ok": 17,
+   "check": 1,
    "failures": 0
   },
   {
@@ -9483,8 +9484,8 @@
    "start": 181483517,
    "end": 181808084,
    "amplicons": 48,
-   "ok": 45,
-   "check": 3,
+   "ok": 46,
+   "check": 2,
    "failures": 0
   },
   {
@@ -9561,8 +9562,8 @@
    "start": 81946444,
    "end": 82443777,
    "amplicons": 39,
-   "ok": 32,
-   "check": 7,
+   "ok": 33,
+   "check": 6,
    "failures": 0
   },
   {
@@ -9717,8 +9718,8 @@
    "start": 122318411,
    "end": 122886460,
    "amplicons": 30,
-   "ok": 29,
-   "check": 1,
+   "ok": 30,
+   "check": 0,
    "failures": 0
   },
   {
@@ -9873,8 +9874,8 @@
    "start": 73812501,
    "end": 73874555,
    "amplicons": 22,
-   "ok": 19,
-   "check": 3,
+   "ok": 20,
+   "check": 2,
    "failures": 0
   },
   {
@@ -10081,8 +10082,8 @@
    "start": 37490362,
    "end": 37519415,
    "amplicons": 20,
-   "ok": 14,
-   "check": 6,
+   "ok": 15,
+   "check": 5,
    "failures": 0
   },
   {
@@ -10146,8 +10147,8 @@
    "start": 67645144,
    "end": 67657569,
    "amplicons": 38,
-   "ok": 29,
-   "check": 9,
+   "ok": 30,
+   "check": 8,
    "failures": 0
   },
   {
@@ -10172,8 +10173,8 @@
    "start": 110641417,
    "end": 110706116,
    "amplicons": 15,
-   "ok": 11,
-   "check": 4,
+   "ok": 12,
+   "check": 3,
    "failures": 0
   },
   {
@@ -10328,8 +10329,8 @@
    "start": 96662376,
    "end": 96774683,
    "amplicons": 31,
-   "ok": 28,
-   "check": 3,
+   "ok": 29,
+   "check": 2,
    "failures": 0
   },
   {
@@ -10367,8 +10368,8 @@
    "start": 66016752,
    "end": 66026479,
    "amplicons": 12,
-   "ok": 11,
-   "check": 1,
+   "ok": 12,
+   "check": 0,
    "failures": 0
   },
   {
@@ -10406,8 +10407,8 @@
    "start": 26190602,
    "end": 26202964,
    "amplicons": 10,
-   "ok": 9,
-   "check": 1,
+   "ok": 10,
+   "check": 0,
    "failures": 0
   },
   {
@@ -10614,8 +10615,8 @@
    "start": 13906201,
    "end": 13930879,
    "amplicons": 29,
-   "ok": 21,
-   "check": 8,
+   "ok": 22,
+   "check": 7,
    "failures": 0
   },
   {
@@ -10718,8 +10719,8 @@
    "start": 77122615,
    "end": 77295204,
    "amplicons": 18,
-   "ok": 16,
-   "check": 2,
+   "ok": 17,
+   "check": 1,
    "failures": 0
   },
   {
@@ -10731,8 +10732,8 @@
    "start": 14651762,
    "end": 14672655,
    "amplicons": 11,
-   "ok": 9,
-   "check": 2,
+   "ok": 10,
+   "check": 1,
    "failures": 0
   },
   {
@@ -10874,8 +10875,8 @@
    "start": 722582,
    "end": 726443,
    "amplicons": 14,
-   "ok": 7,
-   "check": 7,
+   "ok": 8,
+   "check": 6,
    "failures": 0
   },
   {
@@ -12460,8 +12461,8 @@
    "start": 118998138,
    "end": 119015793,
    "amplicons": 11,
-   "ok": 9,
-   "check": 2,
+   "ok": 10,
+   "check": 1,
    "failures": 0
   },
   {
@@ -12473,8 +12474,8 @@
    "start": 103105811,
    "end": 103198343,
    "amplicons": 49,
-   "ok": 48,
-   "check": 1,
+   "ok": 49,
+   "check": 0,
    "failures": 0
   },
   {
@@ -12564,8 +12565,8 @@
    "start": 48737938,
    "end": 48811069,
    "amplicons": 26,
-   "ok": 24,
-   "check": 2,
+   "ok": 25,
+   "check": 1,
    "failures": 0
   },
   {
@@ -12642,8 +12643,8 @@
    "start": 130393771,
    "end": 130441016,
    "amplicons": 11,
-   "ok": 10,
-   "check": 1,
+   "ok": 11,
+   "check": 0,
    "failures": 0
   },
   {
@@ -12694,8 +12695,8 @@
    "start": 78236075,
    "end": 78279690,
    "amplicons": 16,
-   "ok": 15,
-   "check": 1,
+   "ok": 16,
+   "check": 0,
    "failures": 1
   },
   {
@@ -13461,8 +13462,8 @@
    "start": 125625163,
    "end": 125657147,
    "amplicons": 12,
-   "ok": 10,
-   "check": 2,
+   "ok": 11,
+   "check": 1,
    "failures": 0
   },
   {
@@ -13695,8 +13696,8 @@
    "start": 184380054,
    "end": 184389829,
    "amplicons": 23,
-   "ok": 16,
-   "check": 7,
+   "ok": 17,
+   "check": 6,
    "failures": 0
   },
   {
@@ -14059,8 +14060,8 @@
    "start": 78104606,
    "end": 78131445,
    "amplicons": 6,
-   "ok": 5,
-   "check": 1,
+   "ok": 6,
+   "check": 0,
    "failures": 0
   },
   {
@@ -14072,8 +14073,8 @@
    "start": 93700550,
    "end": 93731527,
    "amplicons": 9,
-   "ok": 6,
-   "check": 3,
+   "ok": 5,
+   "check": 4,
    "failures": 0
   },
   {
@@ -14111,8 +14112,8 @@
    "start": 10877202,
    "end": 10936394,
    "amplicons": 19,
-   "ok": 12,
-   "check": 7,
+   "ok": 13,
+   "check": 6,
    "failures": 0
   },
   {
@@ -14904,8 +14905,8 @@
    "start": 57882340,
    "end": 57971128,
    "amplicons": 32,
-   "ok": 24,
-   "check": 8,
+   "ok": 25,
+   "check": 7,
    "failures": 0
   },
   {
@@ -15021,8 +15022,8 @@
    "start": 42929480,
    "end": 42939294,
    "amplicons": 6,
-   "ok": 5,
-   "check": 1,
+   "ok": 6,
+   "check": 0,
    "failures": 0
   },
   {
@@ -15268,8 +15269,8 @@
    "start": 45464939,
    "end": 45536701,
    "amplicons": 23,
-   "ok": 22,
-   "check": 1,
+   "ok": 23,
+   "check": 0,
    "failures": 0
   },
   {
@@ -15359,8 +15360,8 @@
    "start": 102876473,
    "end": 103108522,
    "amplicons": 67,
-   "ok": 45,
-   "check": 22,
+   "ok": 46,
+   "check": 21,
    "failures": 0
   },
   {
@@ -15372,8 +15373,8 @@
    "start": 33162694,
    "end": 33192467,
    "amplicons": 66,
-   "ok": 32,
-   "check": 34,
+   "ok": 34,
+   "check": 32,
    "failures": 0
   },
   {
@@ -15398,8 +15399,8 @@
    "start": 69801906,
    "end": 69959144,
    "amplicons": 41,
-   "ok": 24,
-   "check": 17,
+   "ok": 25,
+   "check": 16,
    "failures": 0
   },
   {
@@ -15424,8 +15425,8 @@
    "start": 45405165,
    "end": 45513720,
    "amplicons": 42,
-   "ok": 17,
-   "check": 25,
+   "ok": 18,
+   "check": 24,
    "failures": 0
   },
   {
@@ -15489,8 +15490,8 @@
    "start": 114155537,
    "end": 114312511,
    "amplicons": 61,
-   "ok": 22,
-   "check": 39,
+   "ok": 23,
+   "check": 38,
    "failures": 0
   },
   {
@@ -15502,8 +15503,8 @@
    "start": 47972967,
    "end": 48004476,
    "amplicons": 54,
-   "ok": 28,
-   "check": 26,
+   "ok": 30,
+   "check": 24,
    "failures": 0
   },
   {
@@ -15515,8 +15516,8 @@
    "start": 188974373,
    "end": 189012746,
    "amplicons": 51,
-   "ok": 27,
-   "check": 24,
+   "ok": 29,
+   "check": 22,
    "failures": 0
   },
   {
@@ -15541,8 +15542,8 @@
    "start": 110307284,
    "end": 110513209,
    "amplicons": 47,
-   "ok": 35,
-   "check": 12,
+   "ok": 36,
+   "check": 11,
    "failures": 0
   },
   {
@@ -15580,8 +15581,8 @@
    "start": 108439838,
    "end": 108697545,
    "amplicons": 53,
-   "ok": 37,
-   "check": 16,
+   "ok": 38,
+   "check": 15,
    "failures": 0
   },
   {
@@ -15606,8 +15607,8 @@
    "start": 134641803,
    "end": 134844843,
    "amplicons": 66,
-   "ok": 38,
-   "check": 28,
+   "ok": 39,
+   "check": 27,
    "failures": 0
   },
   {
@@ -15658,8 +15659,8 @@
    "start": 237324018,
    "end": 237414164,
    "amplicons": 43,
-   "ok": 38,
-   "check": 5,
+   "ok": 39,
+   "check": 4,
    "failures": 0
   },
   {
@@ -15671,8 +15672,8 @@
    "start": 48564073,
    "end": 48595329,
    "amplicons": 118,
-   "ok": 71,
-   "check": 47,
+   "ok": 73,
+   "check": 45,
    "failures": 0
   },
   {
@@ -15697,8 +15698,8 @@
    "start": 70216126,
    "end": 70303084,
    "amplicons": 38,
-   "ok": 20,
-   "check": 18,
+   "ok": 21,
+   "check": 17,
    "failures": 0
   },
   {
@@ -15723,8 +15724,8 @@
    "start": 62817050,
    "end": 62841159,
    "amplicons": 32,
-   "ok": 8,
-   "check": 24,
+   "ok": 9,
+   "check": 23,
    "failures": 0
   },
   {
@@ -16321,8 +16322,8 @@
    "start": 784957,
    "end": 826129,
    "amplicons": 3,
-   "ok": 1,
-   "check": 2,
+   "ok": 2,
+   "check": 1,
    "failures": 0
   },
   {
@@ -17725,8 +17726,8 @@
    "start": 111034165,
    "end": 111350554,
    "amplicons": 22,
-   "ok": 19,
-   "check": 3,
+   "ok": 20,
+   "check": 2,
    "failures": 0
   },
   {
@@ -18128,8 +18129,8 @@
    "start": 54153446,
    "end": 54173986,
    "amplicons": 11,
-   "ok": 10,
-   "check": 1,
+   "ok": 11,
+   "check": 0,
    "failures": 0
   },
   {
@@ -18141,8 +18142,8 @@
    "start": 72129238,
    "end": 72147862,
    "amplicons": 6,
-   "ok": 5,
-   "check": 1,
+   "ok": 6,
+   "check": 0,
    "failures": 0
   },
   {
@@ -18674,8 +18675,8 @@
    "start": 155689091,
    "end": 155739010,
    "amplicons": 12,
-   "ok": 10,
-   "check": 2,
+   "ok": 11,
+   "check": 1,
    "failures": 0
   },
   {
@@ -19337,8 +19338,8 @@
    "start": 144314584,
    "end": 144326852,
    "amplicons": 17,
-   "ok": 13,
-   "check": 4,
+   "ok": 14,
+   "check": 3,
    "failures": 0
   },
   {
@@ -19467,8 +19468,8 @@
    "start": 80626226,
    "end": 80654983,
    "amplicons": 6,
-   "ok": 2,
-   "check": 4,
+   "ok": 3,
+   "check": 3,
    "failures": 0
   },
   {
@@ -19857,8 +19858,8 @@
    "start": 83455173,
    "end": 85627344,
    "amplicons": 26,
-   "ok": 25,
-   "check": 1,
+   "ok": 26,
+   "check": 0,
    "failures": 0
   },
   {
@@ -19883,8 +19884,8 @@
    "start": 7187187,
    "end": 7217627,
    "amplicons": 20,
-   "ok": 18,
-   "check": 2,
+   "ok": 19,
+   "check": 1,
    "failures": 0
   },
   {
@@ -20845,8 +20846,8 @@
    "start": 11199295,
    "end": 11262524,
    "amplicons": 48,
-   "ok": 44,
-   "check": 4,
+   "ok": 45,
+   "check": 3,
    "failures": 0
   },
   {
@@ -21586,8 +21587,8 @@
    "start": 48331429,
    "end": 48343373,
    "amplicons": 7,
-   "ok": 4,
-   "check": 3,
+   "ok": 5,
+   "check": 2,
    "failures": 0
   },
   {
@@ -21599,8 +21600,8 @@
    "start": 1335278,
    "end": 1349418,
    "amplicons": 15,
-   "ok": 12,
-   "check": 3,
+   "ok": 13,
+   "check": 2,
    "failures": 0
   },
   {
@@ -21794,8 +21795,8 @@
    "start": 71466699,
    "end": 71686763,
    "amplicons": 56,
-   "ok": 51,
-   "check": 5,
+   "ok": 52,
+   "check": 4,
    "failures": 0
   },
   {
@@ -21988,10 +21989,10 @@
    "chrom": "16",
    "start": 2239402,
    "end": 2251587,
-   "amplicons": 6,
+   "amplicons": 7,
    "ok": 4,
-   "check": 2,
-   "failures": 1
+   "check": 3,
+   "failures": 0
   },
   {
    "gene": "ECM1",
@@ -22873,8 +22874,8 @@
    "start": 36129899,
    "end": 36180557,
    "amplicons": 22,
-   "ok": 21,
-   "check": 1,
+   "ok": 22,
+   "check": 0,
    "failures": 0
   },
   {
@@ -23172,8 +23173,8 @@
    "start": 41092592,
    "end": 41180077,
    "amplicons": 31,
-   "ok": 29,
-   "check": 2,
+   "ok": 30,
+   "check": 1,
    "failures": 0
   },
   {
@@ -23458,8 +23459,8 @@
    "start": 219968600,
    "end": 220046505,
    "amplicons": 32,
-   "ok": 31,
-   "check": 1,
+   "ok": 32,
+   "check": 0,
    "failures": 0
   },
   {
@@ -23484,8 +23485,8 @@
    "start": 706231,
    "end": 727727,
    "amplicons": 20,
-   "ok": 13,
-   "check": 7,
+   "ok": 14,
+   "check": 6,
    "failures": 0
   },
   {
@@ -24433,8 +24434,8 @@
    "start": 46719213,
    "end": 46739506,
    "amplicons": 14,
-   "ok": 13,
-   "check": 1,
+   "ok": 14,
+   "check": 0,
    "failures": 0
   },
   {
@@ -24888,8 +24889,8 @@
    "start": 89243979,
    "end": 89317131,
    "amplicons": 37,
-   "ok": 36,
-   "check": 1,
+   "ok": 37,
+   "check": 0,
    "failures": 0
   },
   {
@@ -24914,8 +24915,8 @@
    "start": 45135930,
    "end": 45200890,
    "amplicons": 23,
-   "ok": 22,
-   "check": 1,
+   "ok": 23,
+   "check": 0,
    "failures": 0
   },
   {
@@ -25005,8 +25006,8 @@
    "start": 82078338,
    "end": 82098236,
    "amplicons": 42,
-   "ok": 34,
-   "check": 8,
+   "ok": 35,
+   "check": 7,
    "failures": 0
   },
   {
@@ -25304,8 +25305,8 @@
    "start": 171861549,
    "end": 172006638,
    "amplicons": 13,
-   "ok": 12,
-   "check": 1,
+   "ok": 13,
+   "check": 0,
    "failures": 0
   },
   {
@@ -25434,8 +25435,8 @@
    "start": 70454595,
    "end": 70480274,
    "amplicons": 23,
-   "ok": 18,
-   "check": 5,
+   "ok": 19,
+   "check": 4,
    "failures": 0
   },
   {
@@ -26136,8 +26137,8 @@
    "start": 2794970,
    "end": 2805423,
    "amplicons": 10,
-   "ok": 9,
-   "check": 1,
+   "ok": 10,
+   "check": 0,
    "failures": 0
   },
   {
@@ -26240,8 +26241,8 @@
    "start": 152302165,
    "end": 152325239,
    "amplicons": 2,
-   "ok": 0,
-   "check": 2,
+   "ok": 1,
+   "check": 1,
    "failures": 0
   },
   {
@@ -26279,8 +26280,8 @@
    "start": 18244815,
    "end": 18258738,
    "amplicons": 30,
-   "ok": 26,
-   "check": 4,
+   "ok": 28,
+   "check": 2,
    "failures": 0
   },
   {
@@ -26994,8 +26995,8 @@
    "start": 93667883,
    "end": 93702592,
    "amplicons": 13,
-   "ok": 9,
-   "check": 4,
+   "ok": 11,
+   "check": 2,
    "failures": 0
   },
   {
@@ -27332,8 +27333,8 @@
    "start": 48965309,
    "end": 48966879,
    "amplicons": 4,
-   "ok": 3,
-   "check": 1,
+   "ok": 4,
+   "check": 0,
    "failures": 0
   },
   {
@@ -27501,8 +27502,8 @@
    "start": 180912670,
    "end": 180982753,
    "amplicons": 17,
-   "ok": 15,
-   "check": 2,
+   "ok": 14,
+   "check": 3,
    "failures": 0
   },
   {
@@ -27696,8 +27697,8 @@
    "start": 80101581,
    "end": 80119881,
    "amplicons": 19,
-   "ok": 14,
-   "check": 5,
+   "ok": 15,
+   "check": 4,
    "failures": 0
   },
   {
@@ -27995,8 +27996,8 @@
    "start": 241776822,
    "end": 241804287,
    "amplicons": 4,
-   "ok": 2,
-   "check": 2,
+   "ok": 3,
+   "check": 1,
    "failures": 0
   },
   {
@@ -28034,8 +28035,8 @@
    "start": 87933014,
    "end": 87993182,
    "amplicons": 17,
-   "ok": 14,
-   "check": 3,
+   "ok": 15,
+   "check": 2,
    "failures": 0
   },
   {
@@ -28294,8 +28295,8 @@
    "start": 1397026,
    "end": 1401542,
    "amplicons": 6,
-   "ok": 3,
-   "check": 3,
+   "ok": 4,
+   "check": 2,
    "failures": 0
   },
   {
@@ -28333,8 +28334,8 @@
    "start": 115623510,
    "end": 115721483,
    "amplicons": 3,
-   "ok": 2,
-   "check": 1,
+   "ok": 3,
+   "check": 0,
    "failures": 0
   },
   {
@@ -28385,8 +28386,8 @@
    "start": 35744511,
    "end": 35753239,
    "amplicons": 6,
-   "ok": 5,
-   "check": 1,
+   "ok": 6,
+   "check": 0,
    "failures": 0
   },
   {
@@ -28957,8 +28958,8 @@
    "start": 12737497,
    "end": 12748323,
    "amplicons": 7,
-   "ok": 6,
-   "check": 1,
+   "ok": 7,
+   "check": 0,
    "failures": 0
   },
   {
@@ -29074,8 +29075,8 @@
    "start": 116056925,
    "end": 116273206,
    "amplicons": 10,
-   "ok": 9,
-   "check": 1,
+   "ok": 10,
+   "check": 0,
    "failures": 0
   },
   {
@@ -29958,8 +29959,8 @@
    "start": 11689264,
    "end": 11885685,
    "amplicons": 12,
-   "ok": 11,
-   "check": 1,
+   "ok": 12,
+   "check": 0,
    "failures": 0
   },
   {
@@ -29971,8 +29972,8 @@
    "start": 56191489,
    "end": 56357444,
    "amplicons": 8,
-   "ok": 7,
-   "check": 1,
+   "ok": 8,
+   "check": 0,
    "failures": 0
   },
   {
@@ -30062,8 +30063,8 @@
    "start": 100673740,
    "end": 100679169,
    "amplicons": 9,
-   "ok": 8,
-   "check": 1,
+   "ok": 9,
+   "check": 0,
    "failures": 0
   },
   {
@@ -30179,8 +30180,8 @@
    "start": 101745499,
    "end": 101830959,
    "amplicons": 21,
-   "ok": 20,
-   "check": 1,
+   "ok": 21,
+   "check": 0,
    "failures": 0
   },
   {
@@ -30764,8 +30765,8 @@
    "start": 82051898,
    "end": 82057470,
    "amplicons": 13,
-   "ok": 11,
-   "check": 2,
+   "ok": 12,
+   "check": 1,
    "failures": 0
   },
   {
@@ -30920,8 +30921,8 @@
    "start": 101492439,
    "end": 101669726,
    "amplicons": 16,
-   "ok": 15,
-   "check": 1,
+   "ok": 16,
+   "check": 0,
    "failures": 0
   },
   {
@@ -31336,8 +31337,8 @@
    "start": 85613322,
    "end": 85676200,
    "amplicons": 16,
-   "ok": 12,
-   "check": 4,
+   "ok": 15,
+   "check": 1,
    "failures": 0
   },
   {
@@ -31700,8 +31701,8 @@
    "start": 109372906,
    "end": 109482086,
    "amplicons": 18,
-   "ok": 17,
-   "check": 1,
+   "ok": 18,
+   "check": 0,
    "failures": 0
   },
   {
@@ -32350,8 +32351,8 @@
    "start": 32052242,
    "end": 32101856,
    "amplicons": 13,
-   "ok": 10,
-   "check": 3,
+   "ok": 12,
+   "check": 1,
    "failures": 0
   },
   {
@@ -32441,8 +32442,8 @@
    "start": 239048168,
    "end": 239401020,
    "amplicons": 26,
-   "ok": 19,
-   "check": 7,
+   "ok": 20,
+   "check": 6,
    "failures": 0
   },
   {
@@ -32805,8 +32806,8 @@
    "start": 210328902,
    "end": 210676290,
    "amplicons": 11,
-   "ok": 10,
-   "check": 1,
+   "ok": 11,
+   "check": 0,
    "failures": 0
   },
   {
@@ -32844,8 +32845,8 @@
    "start": 61695513,
    "end": 61748258,
    "amplicons": 15,
-   "ok": 14,
-   "check": 1,
+   "ok": 15,
+   "check": 0,
    "failures": 0
   },
   {
@@ -32974,8 +32975,8 @@
    "start": 31353875,
    "end": 31357179,
    "amplicons": 7,
-   "ok": 2,
-   "check": 5,
+   "ok": 1,
+   "check": 6,
    "failures": 0
   },
   {
@@ -33416,8 +33417,8 @@
    "start": 244850297,
    "end": 244864543,
    "amplicons": 14,
-   "ok": 13,
-   "check": 1,
+   "ok": 14,
+   "check": 0,
    "failures": 0
   },
   {
@@ -33871,8 +33872,8 @@
    "start": 22130458,
    "end": 22131010,
    "amplicons": 1,
-   "ok": 0,
-   "check": 1,
+   "ok": 1,
+   "check": 0,
    "failures": 0
   },
   {
@@ -33936,8 +33937,8 @@
    "start": 28742039,
    "end": 28757510,
    "amplicons": 6,
-   "ok": 4,
-   "check": 2,
+   "ok": 5,
+   "check": 1,
    "failures": 0
   },
   {
@@ -34001,8 +34002,8 @@
    "start": 119452497,
    "end": 119542332,
    "amplicons": 24,
-   "ok": 21,
-   "check": 3,
+   "ok": 22,
+   "check": 2,
    "failures": 0
   },
   {
@@ -34079,8 +34080,8 @@
    "start": 67164745,
    "end": 67169941,
    "amplicons": 13,
-   "ok": 8,
-   "check": 5,
+   "ok": 9,
+   "check": 4,
    "failures": 0
   },
   {
@@ -34209,8 +34210,8 @@
    "start": 21822244,
    "end": 21937310,
    "amplicons": 96,
-   "ok": 78,
-   "check": 18,
+   "ok": 80,
+   "check": 16,
    "failures": 1
   },
   {
@@ -34768,8 +34769,8 @@
    "start": 33324970,
    "end": 33359864,
    "amplicons": 11,
-   "ok": 10,
-   "check": 1,
+   "ok": 11,
+   "check": 0,
    "failures": 0
   },
   {
@@ -35223,8 +35224,8 @@
    "start": 42271302,
    "end": 42332460,
    "amplicons": 21,
-   "ok": 20,
-   "check": 1,
+   "ok": 21,
+   "check": 0,
    "failures": 0
   },
   {
@@ -35691,8 +35692,8 @@
    "start": 112911165,
    "end": 112918882,
    "amplicons": 5,
-   "ok": 3,
-   "check": 2,
+   "ok": 4,
+   "check": 1,
    "failures": 0
   },
   {
@@ -35782,8 +35783,8 @@
    "start": 35856891,
    "end": 35879603,
    "amplicons": 8,
-   "ok": 7,
-   "check": 1,
+   "ok": 8,
+   "check": 0,
    "failures": 0
   },
   {
@@ -35860,8 +35861,8 @@
    "start": 128392277,
    "end": 128409982,
    "amplicons": 17,
-   "ok": 12,
-   "check": 5,
+   "ok": 13,
+   "check": 4,
    "failures": 0
   },
   {
@@ -36107,8 +36108,8 @@
    "start": 1470277,
    "end": 1504389,
    "amplicons": 47,
-   "ok": 39,
-   "check": 8,
+   "ok": 40,
+   "check": 7,
    "failures": 0
   },
   {
@@ -36497,8 +36498,8 @@
    "start": 1877413,
    "end": 1882925,
    "amplicons": 5,
-   "ok": 2,
-   "check": 3,
+   "ok": 3,
+   "check": 2,
    "failures": 0
   },
   {
@@ -36640,8 +36641,8 @@
    "start": 50056110,
    "end": 50090481,
    "amplicons": 25,
-   "ok": 22,
-   "check": 3,
+   "ok": 23,
+   "check": 2,
    "failures": 0
   },
   {
@@ -36705,8 +36706,8 @@
    "start": 31259975,
    "end": 31332877,
    "amplicons": 30,
-   "ok": 27,
-   "check": 3,
+   "ok": 28,
+   "check": 2,
    "failures": 0
   },
   {
@@ -37303,8 +37304,8 @@
    "start": 65712252,
    "end": 65719604,
    "amplicons": 13,
-   "ok": 12,
-   "check": 1,
+   "ok": 13,
+   "check": 0,
    "failures": 0
   },
   {
@@ -37342,8 +37343,8 @@
    "start": 31117664,
    "end": 31131359,
    "amplicons": 11,
-   "ok": 9,
-   "check": 2,
+   "ok": 10,
+   "check": 1,
    "failures": 0
   },
   {
@@ -38135,8 +38136,8 @@
    "start": 29906339,
    "end": 29926226,
    "amplicons": 6,
-   "ok": 4,
-   "check": 2,
+   "ok": 5,
+   "check": 1,
    "failures": 0
   },
   {
@@ -38551,8 +38552,8 @@
    "start": 200551500,
    "end": 200620751,
    "amplicons": 29,
-   "ok": 26,
-   "check": 3,
+   "ok": 27,
+   "check": 2,
    "failures": 0
   },
   {
@@ -38590,8 +38591,8 @@
    "start": 240713767,
    "end": 240820219,
    "amplicons": 48,
-   "ok": 42,
-   "check": 6,
+   "ok": 43,
+   "check": 5,
    "failures": 0
   },
   {
@@ -39318,8 +39319,8 @@
    "start": 123384132,
    "end": 123409353,
    "amplicons": 8,
-   "ok": 3,
-   "check": 5,
+   "ok": 4,
+   "check": 4,
    "failures": 0
   },
   {
@@ -39981,8 +39982,8 @@
    "start": 62309065,
    "end": 62367312,
    "amplicons": 80,
-   "ok": 50,
-   "check": 30,
+   "ok": 52,
+   "check": 28,
    "failures": 0
   },
   {
@@ -40137,8 +40138,8 @@
    "start": 146113034,
    "end": 146182650,
    "amplicons": 32,
-   "ok": 30,
-   "check": 2,
+   "ok": 31,
+   "check": 1,
    "failures": 0
   },
   {
@@ -40280,8 +40281,8 @@
    "start": 136738170,
    "end": 136742940,
    "amplicons": 6,
-   "ok": 5,
-   "check": 1,
+   "ok": 6,
+   "check": 0,
    "failures": 0
   },
   {
@@ -40462,8 +40463,8 @@
    "start": 65169583,
    "end": 65248355,
    "amplicons": 13,
-   "ok": 11,
-   "check": 2,
+   "ok": 12,
+   "check": 1,
    "failures": 0
   },
   {
@@ -40748,8 +40749,8 @@
    "start": 48115445,
    "end": 48170344,
    "amplicons": 27,
-   "ok": 23,
-   "check": 4,
+   "ok": 24,
+   "check": 3,
    "failures": 0
   },
   {
@@ -40995,8 +40996,8 @@
    "start": 59327823,
    "end": 59359265,
    "amplicons": 13,
-   "ok": 12,
-   "check": 1,
+   "ok": 13,
+   "check": 0,
    "failures": 0
   },
   {
@@ -41060,8 +41061,8 @@
    "start": 853634,
    "end": 970984,
    "amplicons": 11,
-   "ok": 9,
-   "check": 2,
+   "ok": 10,
+   "check": 1,
    "failures": 0
   },
   {
@@ -41242,8 +41243,8 @@
    "start": 153259687,
    "end": 153262124,
    "amplicons": 1,
-   "ok": 0,
-   "check": 1,
+   "ok": 1,
+   "check": 0,
    "failures": 0
   },
   {
@@ -41489,8 +41490,8 @@
    "start": 57128483,
    "end": 57213361,
    "amplicons": 89,
-   "ok": 85,
-   "check": 4,
+   "ok": 87,
+   "check": 2,
    "failures": 0
   },
   {
@@ -41658,8 +41659,8 @@
    "start": 537527,
    "end": 554912,
    "amplicons": 11,
-   "ok": 6,
-   "check": 5,
+   "ok": 7,
+   "check": 4,
    "failures": 0
   },
   {
@@ -41827,8 +41828,8 @@
    "start": 46188446,
    "end": 46228774,
    "amplicons": 22,
-   "ok": 18,
-   "check": 4,
+   "ok": 19,
+   "check": 3,
    "failures": 0
   },
   {
@@ -41853,8 +41854,8 @@
    "start": 74498183,
    "end": 74612237,
    "amplicons": 36,
-   "ok": 33,
-   "check": 3,
+   "ok": 34,
+   "check": 2,
    "failures": 0
   },
   {
@@ -41879,8 +41880,8 @@
    "start": 40601369,
    "end": 40629818,
    "amplicons": 30,
-   "ok": 23,
-   "check": 7,
+   "ok": 24,
+   "check": 6,
    "failures": 0
   },
   {
@@ -42178,8 +42179,8 @@
    "start": 1289891,
    "end": 1340137,
    "amplicons": 9,
-   "ok": 7,
-   "check": 2,
+   "ok": 8,
+   "check": 1,
    "failures": 0
   },
   {
@@ -42438,8 +42439,8 @@
    "start": 75355792,
    "end": 75368607,
    "amplicons": 26,
-   "ok": 24,
-   "check": 2,
+   "ok": 25,
+   "check": 1,
    "failures": 0
   },
   {
@@ -42529,8 +42530,8 @@
    "start": 66386912,
    "end": 66491544,
    "amplicons": 11,
-   "ok": 9,
-   "check": 2,
+   "ok": 10,
+   "check": 1,
    "failures": 0
   },
   {
@@ -42698,8 +42699,8 @@
    "start": 36156160,
    "end": 36180849,
    "amplicons": 16,
-   "ok": 12,
-   "check": 4,
+   "ok": 13,
+   "check": 3,
    "failures": 1
   },
   {
@@ -42854,8 +42855,8 @@
    "start": 57488068,
    "end": 57516652,
    "amplicons": 21,
-   "ok": 20,
-   "check": 1,
+   "ok": 21,
+   "check": 0,
    "failures": 0
   },
   {
@@ -43452,8 +43453,8 @@
    "start": 114922094,
    "end": 115019917,
    "amplicons": 4,
-   "ok": 2,
-   "check": 2,
+   "ok": 3,
+   "check": 1,
    "failures": 0
   },
   {
@@ -43543,8 +43544,8 @@
    "start": 89642498,
    "end": 89819794,
    "amplicons": 102,
-   "ok": 101,
-   "check": 1,
+   "ok": 102,
+   "check": 0,
    "failures": 0
   },
   {
@@ -44154,8 +44155,8 @@
    "start": 98619106,
    "end": 98731132,
    "amplicons": 15,
-   "ok": 14,
-   "check": 1,
+   "ok": 15,
+   "check": 0,
    "failures": 0
   },
   {
@@ -44206,8 +44207,8 @@
    "start": 76868404,
    "end": 76950393,
    "amplicons": 18,
-   "ok": 15,
-   "check": 3,
+   "ok": 16,
+   "check": 2,
    "failures": 0
   },
   {
@@ -44297,8 +44298,8 @@
    "start": 222618097,
    "end": 222668007,
    "amplicons": 28,
-   "ok": 26,
-   "check": 2,
+   "ok": 27,
+   "check": 1,
    "failures": 0
   },
   {
@@ -44479,8 +44480,8 @@
    "start": 23730189,
    "end": 23889400,
    "amplicons": 19,
-   "ok": 12,
-   "check": 7,
+   "ok": 13,
+   "check": 6,
    "failures": 0
   },
   {
@@ -44609,8 +44610,8 @@
    "start": 21534232,
    "end": 21743630,
    "amplicons": 22,
-   "ok": 17,
-   "check": 5,
+   "ok": 18,
+   "check": 4,
    "failures": 0
   },
   {
@@ -46104,8 +46105,8 @@
    "start": 79843547,
    "end": 79897014,
    "amplicons": 3,
-   "ok": 2,
-   "check": 1,
+   "ok": 3,
+   "check": 0,
    "failures": 0
   },
   {
@@ -46286,8 +46287,8 @@
    "start": 70661204,
    "end": 70686053,
    "amplicons": 15,
-   "ok": 12,
-   "check": 3,
+   "ok": 13,
+   "check": 2,
    "failures": 0
   },
   {
@@ -46338,8 +46339,8 @@
    "start": 1223066,
    "end": 1262172,
    "amplicons": 49,
-   "ok": 34,
-   "check": 15,
+   "ok": 35,
+   "check": 14,
    "failures": 0
   },
   {
@@ -46468,8 +46469,8 @@
    "start": 47331406,
    "end": 47352702,
    "amplicons": 34,
-   "ok": 29,
-   "check": 5,
+   "ok": 28,
+   "check": 6,
    "failures": 0
   },
   {
@@ -46572,8 +46573,8 @@
    "start": 10521148,
    "end": 10549658,
    "amplicons": 38,
-   "ok": 33,
-   "check": 5,
+   "ok": 34,
+   "check": 4,
    "failures": 0
   },
   {
@@ -46585,8 +46586,8 @@
    "start": 10628532,
    "end": 10657309,
    "amplicons": 39,
-   "ok": 38,
-   "check": 1,
+   "ok": 37,
+   "check": 2,
    "failures": 0
   },
   {
@@ -46871,8 +46872,8 @@
    "start": 109347900,
    "end": 109448379,
    "amplicons": 32,
-   "ok": 31,
-   "check": 1,
+   "ok": 32,
+   "check": 0,
    "failures": 0
   },
   {
@@ -46936,8 +46937,8 @@
    "start": 75749239,
    "end": 75919537,
    "amplicons": 34,
-   "ok": 31,
-   "check": 3,
+   "ok": 32,
+   "check": 2,
    "failures": 0
   },
   {
@@ -47040,8 +47041,8 @@
    "start": 93306429,
    "end": 93482334,
    "amplicons": 54,
-   "ok": 53,
-   "check": 1,
+   "ok": 54,
+   "check": 0,
    "failures": 0
   },
   {
@@ -47131,8 +47132,8 @@
    "start": 58654743,
    "end": 58700062,
    "amplicons": 20,
-   "ok": 18,
-   "check": 2,
+   "ok": 20,
+   "check": 0,
    "failures": 0
   },
   {
@@ -47144,8 +47145,8 @@
    "start": 64164452,
    "end": 64242253,
    "amplicons": 21,
-   "ok": 19,
-   "check": 2,
+   "ok": 20,
+   "check": 1,
    "failures": 0
   },
   {
@@ -47443,8 +47444,8 @@
    "start": 143574785,
    "end": 143578330,
    "amplicons": 13,
-   "ok": 9,
-   "check": 4,
+   "ok": 8,
+   "check": 5,
    "failures": 0
   },
   {
@@ -48457,8 +48458,8 @@
    "start": 151485339,
    "end": 151734476,
    "amplicons": 180,
-   "ok": 155,
-   "check": 25,
+   "ok": 156,
+   "check": 24,
    "failures": 0
   },
   {
@@ -48678,8 +48679,8 @@
    "start": 75079353,
    "end": 75127048,
    "amplicons": 22,
-   "ok": 21,
-   "check": 1,
+   "ok": 22,
+   "check": 0,
    "failures": 0
   },
   {
@@ -49003,8 +49004,8 @@
    "start": 101849514,
    "end": 101861022,
    "amplicons": 12,
-   "ok": 9,
-   "check": 3,
+   "ok": 10,
+   "check": 2,
    "failures": 0
   },
   {
@@ -49731,8 +49732,8 @@
    "start": 71283635,
    "end": 71301168,
    "amplicons": 10,
-   "ok": 7,
-   "check": 3,
+   "ok": 8,
+   "check": 2,
    "failures": 0
   },
   {
@@ -49913,8 +49914,8 @@
    "start": 100820139,
    "end": 100996829,
    "amplicons": 20,
-   "ok": 18,
-   "check": 2,
+   "ok": 19,
+   "check": 1,
    "failures": 0
   },
   {
@@ -50017,8 +50018,8 @@
    "start": 132680609,
    "end": 132722409,
    "amplicons": 27,
-   "ok": 25,
-   "check": 2,
+   "ok": 26,
+   "check": 1,
    "failures": 0
   },
   {
@@ -50823,8 +50824,8 @@
    "start": 33014130,
    "end": 33062776,
    "amplicons": 9,
-   "ok": 5,
-   "check": 4,
+   "ok": 6,
+   "check": 3,
    "failures": 0
   },
   {
@@ -51369,8 +51370,8 @@
    "start": 27754875,
    "end": 28099315,
    "amplicons": 23,
-   "ok": 20,
-   "check": 3,
+   "ok": 21,
+   "check": 2,
    "failures": 0
   },
   {
@@ -51486,8 +51487,8 @@
    "start": 13734748,
    "end": 13769357,
    "amplicons": 23,
-   "ok": 21,
-   "check": 2,
+   "ok": 23,
+   "check": 0,
    "failures": 0
   },
   {
@@ -52019,8 +52020,8 @@
    "start": 80099537,
    "end": 80380880,
    "amplicons": 58,
-   "ok": 56,
-   "check": 2,
+   "ok": 57,
+   "check": 1,
    "failures": 0
   },
   {
@@ -52188,8 +52189,8 @@
    "start": 3673227,
    "end": 3696155,
    "amplicons": 12,
-   "ok": 9,
-   "check": 3,
+   "ok": 10,
+   "check": 2,
    "failures": 0
   },
   {
@@ -52357,8 +52358,8 @@
    "start": 105314748,
    "end": 105398147,
    "amplicons": 25,
-   "ok": 21,
-   "check": 4,
+   "ok": 22,
+   "check": 3,
    "failures": 0
   },
   {
@@ -52487,8 +52488,8 @@
    "start": 196739857,
    "end": 196832647,
    "amplicons": 14,
-   "ok": 12,
-   "check": 2,
+   "ok": 13,
+   "check": 1,
    "failures": 0
   },
   {
@@ -52500,8 +52501,8 @@
    "start": 111096191,
    "end": 111227361,
    "amplicons": 14,
-   "ok": 12,
-   "check": 2,
+   "ok": 13,
+   "check": 1,
    "failures": 0
   },
   {
@@ -52578,8 +52579,8 @@
    "start": 35431827,
    "end": 35525616,
    "amplicons": 11,
-   "ok": 10,
-   "check": 1,
+   "ok": 11,
+   "check": 0,
    "failures": 0
   },
   {
@@ -52669,8 +52670,8 @@
    "start": 204545475,
    "end": 205620162,
    "amplicons": 23,
-   "ok": 22,
-   "check": 1,
+   "ok": 23,
+   "check": 0,
    "failures": 0
   },
   {
@@ -52799,8 +52800,8 @@
    "start": 222199887,
    "end": 222298998,
    "amplicons": 9,
-   "ok": 8,
-   "check": 1,
+   "ok": 9,
+   "check": 0,
    "failures": 0
   },
   {
@@ -53449,8 +53450,8 @@
    "start": 149857953,
    "end": 149944793,
    "amplicons": 22,
-   "ok": 20,
-   "check": 2,
+   "ok": 21,
+   "check": 1,
    "failures": 0
   },
   {
@@ -53930,8 +53931,8 @@
    "start": 92487025,
    "end": 92528520,
    "amplicons": 24,
-   "ok": 21,
-   "check": 3,
+   "ok": 22,
+   "check": 2,
    "failures": 0
   },
   {
@@ -54164,8 +54165,8 @@
    "start": 196833004,
    "end": 196926707,
    "amplicons": 27,
-   "ok": 25,
-   "check": 2,
+   "ok": 26,
+   "check": 1,
    "failures": 0
   },
   {
@@ -54346,8 +54347,8 @@
    "start": 8914509,
    "end": 8941467,
    "amplicons": 14,
-   "ok": 8,
-   "check": 6,
+   "ok": 9,
+   "check": 5,
    "failures": 0
   },
   {
@@ -54359,8 +54360,8 @@
    "start": 22032325,
    "end": 22251310,
    "amplicons": 22,
-   "ok": 21,
-   "check": 1,
+   "ok": 22,
+   "check": 0,
    "failures": 0
   },
   {
@@ -54385,8 +54386,8 @@
    "start": 93576584,
    "end": 93679587,
    "amplicons": 22,
-   "ok": 19,
-   "check": 3,
+   "ok": 20,
+   "check": 2,
    "failures": 0
   },
   {
@@ -54645,8 +54646,8 @@
    "start": 72782133,
    "end": 73016461,
    "amplicons": 17,
-   "ok": 16,
-   "check": 1,
+   "ok": 17,
+   "check": 0,
    "failures": 0
   },
   {
@@ -54684,8 +54685,8 @@
    "start": 799184,
    "end": 805231,
    "amplicons": 15,
-   "ok": 12,
-   "check": 3,
+   "ok": 11,
+   "check": 4,
    "failures": 0
   },
   {
@@ -54853,8 +54854,8 @@
    "start": 62041164,
    "end": 62187056,
    "amplicons": 28,
-   "ok": 24,
-   "check": 4,
+   "ok": 25,
+   "check": 3,
    "failures": 0
   },
   {
@@ -55217,8 +55218,8 @@
    "start": 3137728,
    "end": 3172782,
    "amplicons": 27,
-   "ok": 25,
-   "check": 2,
+   "ok": 26,
+   "check": 1,
    "failures": 0
   },
   {
@@ -55386,8 +55387,8 @@
    "start": 128702503,
    "end": 128720916,
    "amplicons": 22,
-   "ok": 19,
-   "check": 3,
+   "ok": 20,
+   "check": 2,
    "failures": 0
   },
   {
@@ -55503,8 +55504,8 @@
    "start": 26903372,
    "end": 26947242,
    "amplicons": 14,
-   "ok": 13,
-   "check": 1,
+   "ok": 14,
+   "check": 0,
    "failures": 0
   },
   {
@@ -55659,8 +55660,8 @@
    "start": 155479881,
    "end": 155745071,
    "amplicons": 22,
-   "ok": 21,
-   "check": 1,
+   "ok": 22,
+   "check": 0,
    "failures": 0
   },
   {
@@ -55880,8 +55881,8 @@
    "start": 146069440,
    "end": 146161184,
    "amplicons": 20,
-   "ok": 19,
-   "check": 1,
+   "ok": 20,
+   "check": 0,
    "failures": 0
   },
   {
@@ -56426,8 +56427,8 @@
    "start": 42338494,
    "end": 42371808,
    "amplicons": 14,
-   "ok": 12,
-   "check": 2,
+   "ok": 13,
+   "check": 1,
    "failures": 0
   },
   {
@@ -56673,8 +56674,8 @@
    "start": 617221,
    "end": 633537,
    "amplicons": 21,
-   "ok": 16,
-   "check": 5,
+   "ok": 17,
+   "check": 4,
    "failures": 0
   },
   {
@@ -56751,8 +56752,8 @@
    "start": 131502918,
    "end": 131523799,
    "amplicons": 19,
-   "ok": 17,
-   "check": 2,
+   "ok": 18,
+   "check": 1,
    "failures": 0
   },
   {
@@ -57869,8 +57870,8 @@
    "start": 68512430,
    "end": 68533431,
    "amplicons": 10,
-   "ok": 8,
-   "check": 2,
+   "ok": 9,
+   "check": 1,
    "failures": 0
   },
   {
@@ -57973,8 +57974,8 @@
    "start": 47773111,
    "end": 47960136,
    "amplicons": 86,
-   "ok": 83,
-   "check": 3,
+   "ok": 84,
+   "check": 2,
    "failures": 0
   },
   {
@@ -58103,8 +58104,8 @@
    "start": 68311019,
    "end": 68358584,
    "amplicons": 17,
-   "ok": 14,
-   "check": 3,
+   "ok": 15,
+   "check": 2,
    "failures": 0
   },
   {
@@ -58415,8 +58416,8 @@
    "start": 42696598,
    "end": 42722597,
    "amplicons": 3,
-   "ok": 2,
-   "check": 1,
+   "ok": 3,
+   "check": 0,
    "failures": 0
   },
   {
@@ -58519,8 +58520,8 @@
    "start": 232520388,
    "end": 232525716,
    "amplicons": 13,
-   "ok": 6,
-   "check": 7,
+   "ok": 7,
+   "check": 6,
    "failures": 0
   },
   {
@@ -58740,8 +58741,8 @@
    "start": 90256553,
    "end": 90275429,
    "amplicons": 11,
-   "ok": 5,
-   "check": 6,
+   "ok": 6,
+   "check": 5,
    "failures": 0
   },
   {
@@ -58974,8 +58975,8 @@
    "start": 42916053,
    "end": 42925838,
    "amplicons": 4,
-   "ok": 3,
-   "check": 1,
+   "ok": 4,
+   "check": 0,
    "failures": 0
   },
   {
@@ -59000,8 +59001,8 @@
    "start": 87863625,
    "end": 87971930,
    "amplicons": 9,
-   "ok": 5,
-   "check": 4,
+   "ok": 6,
+   "check": 3,
    "failures": 0
   },
   {
@@ -59130,8 +59131,8 @@
    "start": 46877721,
    "end": 46903799,
    "amplicons": 14,
-   "ok": 11,
-   "check": 3,
+   "ok": 12,
+   "check": 2,
    "failures": 0
   },
   {
@@ -59247,8 +59248,8 @@
    "start": 113813811,
    "end": 113871712,
    "amplicons": 21,
-   "ok": 18,
-   "check": 3,
+   "ok": 19,
+   "check": 2,
    "failures": 0
   },
   {
@@ -59325,8 +59326,8 @@
    "start": 127968785,
    "end": 128520599,
    "amplicons": 30,
-   "ok": 28,
-   "check": 2,
+   "ok": 29,
+   "check": 1,
    "failures": 0
   },
   {
@@ -59572,8 +59573,8 @@
    "start": 21437655,
    "end": 21471250,
    "amplicons": 12,
-   "ok": 8,
-   "check": 4,
+   "ok": 7,
+   "check": 5,
    "failures": 0
   },
   {
@@ -59663,8 +59664,8 @@
    "start": 76274049,
    "end": 76308276,
    "amplicons": 19,
-   "ok": 16,
-   "check": 3,
+   "ok": 17,
+   "check": 2,
    "failures": 0
   },
   {
@@ -60222,8 +60223,8 @@
    "start": 35538356,
    "end": 35809295,
    "amplicons": 41,
-   "ok": 21,
-   "check": 20,
+   "ok": 23,
+   "check": 18,
    "failures": 0
   },
   {
@@ -60482,8 +60483,8 @@
    "start": 52622458,
    "end": 52714435,
    "amplicons": 22,
-   "ok": 21,
-   "check": 1,
+   "ok": 22,
+   "check": 0,
    "failures": 0
   },
   {
@@ -60859,8 +60860,8 @@
    "start": 110229441,
    "end": 110296614,
    "amplicons": 13,
-   "ok": 9,
-   "check": 4,
+   "ok": 11,
+   "check": 2,
    "failures": 0
   },
   {
@@ -61210,8 +61211,8 @@
    "start": 116877242,
    "end": 116932161,
    "amplicons": 19,
-   "ok": 17,
-   "check": 2,
+   "ok": 18,
+   "check": 1,
    "failures": 0
   },
   {
@@ -61353,8 +61354,8 @@
    "start": 65137370,
    "end": 65227703,
    "amplicons": 19,
-   "ok": 16,
-   "check": 3,
+   "ok": 17,
+   "check": 2,
    "failures": 0
   },
   {
@@ -61392,8 +61393,8 @@
    "start": 76470896,
    "end": 76501423,
    "amplicons": 17,
-   "ok": 15,
-   "check": 2,
+   "ok": 16,
+   "check": 1,
    "failures": 0
   },
   {
@@ -61496,8 +61497,8 @@
    "start": 32978592,
    "end": 33064888,
    "amplicons": 15,
-   "ok": 1,
-   "check": 14,
+   "ok": 2,
+   "check": 13,
    "failures": 0
   },
   {
@@ -61522,8 +61523,8 @@
    "start": 32455302,
    "end": 32526196,
    "amplicons": 18,
-   "ok": 17,
-   "check": 1,
+   "ok": 18,
+   "check": 0,
    "failures": 0
   },
   {
@@ -62003,8 +62004,8 @@
    "start": 44405255,
    "end": 44651723,
    "amplicons": 14,
-   "ok": 11,
-   "check": 3,
+   "ok": 12,
+   "check": 2,
    "failures": 0
   },
   {
@@ -62120,8 +62121,8 @@
    "start": 124865432,
    "end": 124881471,
    "amplicons": 28,
-   "ok": 26,
-   "check": 2,
+   "ok": 27,
+   "check": 1,
    "failures": 0
   },
   {
@@ -62133,8 +62134,8 @@
    "start": 124883691,
    "end": 124897865,
    "amplicons": 18,
-   "ok": 15,
-   "check": 3,
+   "ok": 16,
+   "check": 2,
    "failures": 0
   },
   {
@@ -62250,8 +62251,8 @@
    "start": 117287353,
    "end": 117425942,
    "amplicons": 44,
-   "ok": 42,
-   "check": 2,
+   "ok": 43,
+   "check": 1,
    "failures": 0
   },
   {
@@ -62757,8 +62758,8 @@
    "start": 153990762,
    "end": 153992155,
    "amplicons": 4,
-   "ok": 4,
-   "check": 0,
+   "ok": 3,
+   "check": 1,
    "failures": 0
   },
   {
@@ -63043,8 +63044,8 @@
    "start": 158972871,
    "end": 159000202,
    "amplicons": 8,
-   "ok": 6,
-   "check": 2,
+   "ok": 7,
+   "check": 1,
    "failures": 0
   },
   {
@@ -63368,8 +63369,8 @@
    "start": 237042184,
    "end": 237833988,
    "amplicons": 105,
-   "ok": 100,
-   "check": 5,
+   "ok": 102,
+   "check": 3,
    "failures": 0
   },
   {
@@ -63433,8 +63434,8 @@
    "start": 233307816,
    "end": 233347055,
    "amplicons": 15,
-   "ok": 13,
-   "check": 2,
+   "ok": 14,
+   "check": 1,
    "failures": 0
   },
   {
@@ -63654,8 +63655,8 @@
    "start": 100083570,
    "end": 100132930,
    "amplicons": 17,
-   "ok": 15,
-   "check": 2,
+   "ok": 16,
+   "check": 1,
    "failures": 0
   },
   {
@@ -63849,8 +63850,8 @@
    "start": 62419033,
    "end": 62423195,
    "amplicons": 3,
-   "ok": 2,
-   "check": 1,
+   "ok": 3,
+   "check": 0,
    "failures": 0
   },
   {
@@ -63914,8 +63915,8 @@
    "start": 165985813,
    "end": 166128020,
    "amplicons": 26,
-   "ok": 24,
-   "check": 2,
+   "ok": 25,
+   "check": 1,
    "failures": 0
   },
   {
@@ -64174,8 +64175,8 @@
    "start": 143790925,
    "end": 143815773,
    "amplicons": 37,
-   "ok": 26,
-   "check": 11,
+   "ok": 28,
+   "check": 9,
    "failures": 0
   },
   {
@@ -64252,8 +64253,8 @@
    "start": 243256041,
    "end": 243500091,
    "amplicons": 18,
-   "ok": 17,
-   "check": 1,
+   "ok": 18,
+   "check": 0,
    "failures": 0
   },
   {
@@ -65487,8 +65488,8 @@
    "start": 172333499,
    "end": 172454525,
    "amplicons": 13,
-   "ok": 12,
-   "check": 1,
+   "ok": 13,
+   "check": 0,
    "failures": 0
   },
   {
@@ -65812,8 +65813,8 @@
    "start": 138946724,
    "end": 139198368,
    "amplicons": 9,
-   "ok": 8,
-   "check": 1,
+   "ok": 9,
+   "check": 0,
    "failures": 0
   },
   {
@@ -66007,8 +66008,8 @@
    "start": 31959175,
    "end": 31969751,
    "amplicons": 28,
-   "ok": 26,
-   "check": 2,
+   "ok": 27,
+   "check": 1,
    "failures": 0
   },
   {
@@ -66085,8 +66086,8 @@
    "start": 146253981,
    "end": 146521940,
    "amplicons": 12,
-   "ok": 11,
-   "check": 1,
+   "ok": 12,
+   "check": 0,
    "failures": 0
   },
   {
@@ -67229,8 +67230,8 @@
    "start": 69094014,
    "end": 69131069,
    "amplicons": 16,
-   "ok": 14,
-   "check": 2,
+   "ok": 15,
+   "check": 1,
    "failures": 0
   },
   {
@@ -67671,8 +67672,8 @@
    "start": 31863192,
    "end": 31878997,
    "amplicons": 21,
-   "ok": 17,
-   "check": 4,
+   "ok": 18,
+   "check": 3,
    "failures": 0
   },
   {
@@ -67957,8 +67958,8 @@
    "start": 17871945,
    "end": 17895174,
    "amplicons": 15,
-   "ok": 14,
-   "check": 1,
+   "ok": 15,
+   "check": 0,
    "failures": 0
   },
   {
@@ -68035,8 +68036,8 @@
    "start": 190081,
    "end": 214157,
    "amplicons": 14,
-   "ok": 13,
-   "check": 1,
+   "ok": 14,
+   "check": 0,
    "failures": 0
   },
   {
@@ -68126,8 +68127,8 @@
    "start": 45755449,
    "end": 45796536,
    "amplicons": 11,
-   "ok": 10,
-   "check": 1,
+   "ok": 11,
+   "check": 0,
    "failures": 0
   },
   {
@@ -68360,8 +68361,8 @@
    "start": 46599251,
    "end": 46759118,
    "amplicons": 17,
-   "ok": 16,
-   "check": 1,
+   "ok": 17,
+   "check": 0,
    "failures": 0
   },
   {
@@ -68880,8 +68881,8 @@
    "start": 70258978,
    "end": 70354873,
    "amplicons": 25,
-   "ok": 24,
-   "check": 1,
+   "ok": 25,
+   "check": 0,
    "failures": 0
   },
   {
@@ -69465,8 +69466,8 @@
    "start": 31659693,
    "end": 31668931,
    "amplicons": 5,
-   "ok": 4,
-   "check": 1,
+   "ok": 5,
+   "check": 0,
    "failures": 0
   },
   {
@@ -69621,8 +69622,8 @@
    "start": 37972312,
    "end": 37984555,
    "amplicons": 3,
-   "ok": 3,
-   "check": 0,
+   "ok": 2,
+   "check": 1,
    "failures": 0
   },
   {
@@ -70245,8 +70246,8 @@
    "start": 50702266,
    "end": 50765706,
    "amplicons": 15,
-   "ok": 13,
-   "check": 2,
+   "ok": 14,
+   "check": 1,
    "failures": 0
   },
   {
@@ -70505,8 +70506,8 @@
    "start": 179820905,
    "end": 179838078,
    "amplicons": 8,
-   "ok": 7,
-   "check": 1,
+   "ok": 8,
+   "check": 0,
    "failures": 0
   },
   {
@@ -70687,8 +70688,8 @@
    "start": 153781041,
    "end": 153785730,
    "amplicons": 15,
-   "ok": 10,
-   "check": 5,
+   "ok": 11,
+   "check": 4,
    "failures": 0
   },
   {
@@ -70882,8 +70883,8 @@
    "start": 130159782,
    "end": 130210362,
    "amplicons": 19,
-   "ok": 17,
-   "check": 2,
+   "ok": 18,
+   "check": 1,
    "failures": 0
   },
   {
@@ -71090,8 +71091,8 @@
    "start": 92393881,
    "end": 92468728,
    "amplicons": 6,
-   "ok": 5,
-   "check": 1,
+   "ok": 6,
+   "check": 0,
    "failures": 0
   },
   {
@@ -71155,8 +71156,8 @@
    "start": 52495338,
    "end": 52524495,
    "amplicons": 69,
-   "ok": 53,
-   "check": 16,
+   "ok": 54,
+   "check": 15,
    "failures": 0
   },
   {
@@ -71181,8 +71182,8 @@
    "start": 136336236,
    "end": 136752378,
    "amplicons": 33,
-   "ok": 32,
-   "check": 1,
+   "ok": 33,
+   "check": 0,
    "failures": 0
   },
   {
@@ -71467,8 +71468,8 @@
    "start": 218672086,
    "end": 218702715,
    "amplicons": 26,
-   "ok": 24,
-   "check": 2,
+   "ok": 25,
+   "check": 1,
    "failures": 0
   },
   {
@@ -71610,8 +71611,8 @@
    "start": 680410,
    "end": 682801,
    "amplicons": 7,
-   "ok": 5,
-   "check": 2,
+   "ok": 6,
+   "check": 1,
    "failures": 0
   },
   {
@@ -71649,8 +71650,8 @@
    "start": 30989256,
    "end": 31010638,
    "amplicons": 10,
-   "ok": 6,
-   "check": 4,
+   "ok": 7,
+   "check": 3,
    "failures": 0
   },
   {
@@ -71662,8 +71663,8 @@
    "start": 59755376,
    "end": 59805878,
    "amplicons": 10,
-   "ok": 9,
-   "check": 1,
+   "ok": 10,
+   "check": 0,
    "failures": 0
   },
   {
@@ -71688,8 +71689,8 @@
    "start": 127612277,
    "end": 127692699,
    "amplicons": 19,
-   "ok": 17,
-   "check": 2,
+   "ok": 18,
+   "check": 1,
    "failures": 0
   },
   {
@@ -71779,8 +71780,8 @@
    "start": 69492847,
    "end": 69660912,
    "amplicons": 19,
-   "ok": 18,
-   "check": 1,
+   "ok": 19,
+   "check": 0,
    "failures": 0
   },
   {
@@ -72026,8 +72027,8 @@
    "start": 133554847,
    "end": 133565583,
    "amplicons": 13,
-   "ok": 8,
-   "check": 5,
+   "ok": 9,
+   "check": 4,
    "failures": 0
   },
   {
@@ -72338,8 +72339,8 @@
    "start": 43389899,
    "end": 43454247,
    "amplicons": 72,
-   "ok": 68,
-   "check": 4,
+   "ok": 69,
+   "check": 3,
    "failures": 0
   },
   {
@@ -72780,8 +72781,8 @@
    "start": 1331280,
    "end": 1335314,
    "amplicons": 6,
-   "ok": 5,
-   "check": 1,
+   "ok": 6,
+   "check": 0,
    "failures": 0
   },
   {
@@ -73391,8 +73392,8 @@
    "start": 1609292,
    "end": 1652615,
    "amplicons": 18,
-   "ok": 10,
-   "check": 8,
+   "ok": 11,
+   "check": 7,
    "failures": 0
   },
   {
@@ -73456,8 +73457,8 @@
    "start": 68039025,
    "end": 68050895,
    "amplicons": 19,
-   "ok": 14,
-   "check": 5,
+   "ok": 15,
+   "check": 4,
    "failures": 0
   },
   {
@@ -73521,8 +73522,8 @@
    "start": 110614129,
    "end": 110649430,
    "amplicons": 14,
-   "ok": 12,
-   "check": 2,
+   "ok": 13,
+   "check": 1,
    "failures": 0
   },
   {
@@ -73534,8 +73535,8 @@
    "start": 123671113,
    "end": 123708399,
    "amplicons": 18,
-   "ok": 14,
-   "check": 4,
+   "ok": 15,
+   "check": 3,
    "failures": 0
   },
   {
@@ -73664,8 +73665,8 @@
    "start": 14529594,
    "end": 14565980,
    "amplicons": 13,
-   "ok": 9,
-   "check": 4,
+   "ok": 10,
+   "check": 3,
    "failures": 0
   },
   {
@@ -73950,8 +73951,8 @@
    "start": 58385410,
    "end": 58399220,
    "amplicons": 7,
-   "ok": 5,
-   "check": 2,
+   "ok": 6,
+   "check": 1,
    "failures": 0
   },
   {
@@ -74041,8 +74042,8 @@
    "start": 187464230,
    "end": 187554435,
    "amplicons": 7,
-   "ok": 6,
-   "check": 1,
+   "ok": 7,
+   "check": 0,
    "failures": 0
   },
   {
@@ -74639,8 +74640,8 @@
    "start": 54308441,
    "end": 54390142,
    "amplicons": 11,
-   "ok": 9,
-   "check": 2,
+   "ok": 10,
+   "check": 1,
    "failures": 0
   },
   {
@@ -74691,8 +74692,8 @@
    "start": 66508003,
    "end": 66550122,
    "amplicons": 10,
-   "ok": 7,
-   "check": 3,
+   "ok": 8,
+   "check": 2,
    "failures": 0
   },
   {
@@ -74756,8 +74757,8 @@
    "start": 62478825,
    "end": 62615481,
    "amplicons": 21,
-   "ok": 7,
-   "check": 14,
+   "ok": 6,
+   "check": 15,
    "failures": 0
   },
   {
@@ -75237,8 +75238,8 @@
    "start": 27322163,
    "end": 27336400,
    "amplicons": 6,
-   "ok": 5,
-   "check": 1,
+   "ok": 6,
+   "check": 0,
    "failures": 0
   },
   {
@@ -75263,8 +75264,8 @@
    "start": 201620186,
    "end": 201643503,
    "amplicons": 13,
-   "ok": 10,
-   "check": 3,
+   "ok": 11,
+   "check": 2,
    "failures": 0
   },
   {
@@ -75497,8 +75498,8 @@
    "start": 113687550,
    "end": 113706308,
    "amplicons": 12,
-   "ok": 6,
-   "check": 6,
+   "ok": 7,
+   "check": 5,
    "failures": 1
   },
   {
@@ -75939,8 +75940,8 @@
    "start": 24729651,
    "end": 24826218,
    "amplicons": 25,
-   "ok": 21,
-   "check": 4,
+   "ok": 22,
+   "check": 3,
    "failures": 0
   },
   {
@@ -76056,8 +76057,8 @@
    "start": 144428775,
    "end": 144444440,
    "amplicons": 26,
-   "ok": 20,
-   "check": 6,
+   "ok": 21,
+   "check": 5,
    "failures": 0
   },
   {
@@ -76069,8 +76070,8 @@
    "start": 41028822,
    "end": 41124487,
    "amplicons": 21,
-   "ok": 14,
-   "check": 7,
+   "ok": 15,
+   "check": 6,
    "failures": 0
   },
   {
@@ -76160,8 +76161,8 @@
    "start": 179882285,
    "end": 179920076,
    "amplicons": 10,
-   "ok": 7,
-   "check": 3,
+   "ok": 8,
+   "check": 2,
    "failures": 0
   },
   {
@@ -76394,8 +76395,8 @@
    "start": 102596986,
    "end": 102679958,
    "amplicons": 30,
-   "ok": 28,
-   "check": 2,
+   "ok": 29,
+   "check": 1,
    "failures": 0
   },
   {
@@ -76537,8 +76538,8 @@
    "start": 2155782,
    "end": 2178129,
    "amplicons": 20,
-   "ok": 17,
-   "check": 3,
+   "ok": 18,
+   "check": 2,
    "failures": 0
   },
   {
@@ -76693,8 +76694,8 @@
    "start": 123216339,
    "end": 123636950,
    "amplicons": 41,
-   "ok": 28,
-   "check": 13,
+   "ok": 29,
+   "check": 12,
    "failures": 0
   },
   {
@@ -76953,8 +76954,8 @@
    "start": 14143342,
    "end": 14510204,
    "amplicons": 57,
-   "ok": 55,
-   "check": 2,
+   "ok": 56,
+   "check": 1,
    "failures": 0
   },
   {
@@ -77720,8 +77721,8 @@
    "start": 146706617,
    "end": 146945864,
    "amplicons": 11,
-   "ok": 10,
-   "check": 1,
+   "ok": 11,
+   "check": 0,
    "failures": 0
   },
   {
@@ -77824,8 +77825,8 @@
    "start": 178525989,
    "end": 178807423,
    "amplicons": 342,
-   "ok": 321,
-   "check": 21,
+   "ok": 323,
+   "check": 19,
    "failures": 20
   },
   {
@@ -78058,8 +78059,8 @@
    "start": 42609683,
    "end": 42615238,
    "amplicons": 11,
-   "ok": 9,
-   "check": 2,
+   "ok": 8,
+   "check": 3,
    "failures": 0
   },
   {
@@ -78343,10 +78344,10 @@
    "chrom": "15",
    "start": 41559212,
    "end": 41583589,
-   "amplicons": 18,
+   "amplicons": 19,
    "ok": 16,
-   "check": 2,
-   "failures": 1
+   "check": 3,
+   "failures": 0
   },
   {
    "gene": "TYROBP",
@@ -78383,8 +78384,8 @@
    "start": 70654554,
    "end": 70763558,
    "amplicons": 19,
-   "ok": 17,
-   "check": 2,
+   "ok": 18,
+   "check": 1,
    "failures": 0
   },
   {
@@ -78617,8 +78618,8 @@
    "start": 42942897,
    "end": 43106038,
    "amplicons": 47,
-   "ok": 45,
-   "check": 2,
+   "ok": 46,
+   "check": 1,
    "failures": 0
   },
   {
@@ -79137,8 +79138,8 @@
    "start": 75827225,
    "end": 75844404,
    "amplicons": 32,
-   "ok": 23,
-   "check": 9,
+   "ok": 24,
+   "check": 8,
    "failures": 0
   },
   {
@@ -79163,8 +79164,8 @@
    "start": 35147817,
    "end": 35189343,
    "amplicons": 19,
-   "ok": 18,
-   "check": 1,
+   "ok": 19,
+   "check": 0,
    "failures": 0
   },
   {
@@ -79800,8 +79801,8 @@
    "start": 8159149,
    "end": 8162948,
    "amplicons": 5,
-   "ok": 1,
-   "check": 4,
+   "ok": 2,
+   "check": 3,
    "failures": 0
   },
   {
@@ -80164,8 +80165,8 @@
    "start": 77177534,
    "end": 77421537,
    "amplicons": 72,
-   "ok": 69,
-   "check": 3,
+   "ok": 71,
+   "check": 1,
    "failures": 0
   },
   {
@@ -80190,8 +80191,8 @@
    "start": 61852389,
    "end": 62060447,
    "amplicons": 85,
-   "ok": 82,
-   "check": 3,
+   "ok": 83,
+   "check": 2,
    "failures": 0
   },
   {
@@ -80502,8 +80503,8 @@
    "start": 28533118,
    "end": 28623112,
    "amplicons": 14,
-   "ok": 13,
-   "check": 1,
+   "ok": 14,
+   "check": 0,
    "failures": 0
   },
   {
@@ -80541,8 +80542,8 @@
    "start": 48683799,
    "end": 48691427,
    "amplicons": 12,
-   "ok": 8,
-   "check": 4,
+   "ok": 10,
+   "check": 2,
    "failures": 0
   },
   {
@@ -80619,8 +80620,8 @@
    "start": 41061509,
    "end": 41084006,
    "amplicons": 10,
-   "ok": 9,
-   "check": 1,
+   "ok": 10,
+   "check": 0,
    "failures": 0
   },
   {
@@ -80723,8 +80724,8 @@
    "start": 19910263,
    "end": 19990105,
    "amplicons": 27,
-   "ok": 25,
-   "check": 2,
+   "ok": 26,
+   "check": 1,
    "failures": 0
   },
   {
@@ -80762,8 +80763,8 @@
    "start": 42849226,
    "end": 42879539,
    "amplicons": 11,
-   "ok": 9,
-   "check": 2,
+   "ok": 10,
+   "check": 1,
    "failures": 0
   },
   {
@@ -81932,8 +81933,8 @@
    "start": 23520857,
    "end": 23551765,
    "amplicons": 9,
-   "ok": 9,
-   "check": 0,
+   "ok": 8,
+   "check": 1,
    "failures": 0
   },
   {
@@ -82465,8 +82466,8 @@
    "start": 12014715,
    "end": 12035679,
    "amplicons": 4,
-   "ok": 2,
-   "check": 2,
+   "ok": 3,
+   "check": 1,
    "failures": 0
   },
   {
