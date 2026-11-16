@@ -19,6 +19,7 @@ match. Spaces inside a sequence (a pasting artefact) are ignored.
 from __future__ import annotations
 
 import argparse
+import math
 import statistics
 import sys
 from pathlib import Path
@@ -64,11 +65,12 @@ def read_file(path: str) -> tuple[dict, list]:
 
 
 def check(seq: str, p: qpb.Params) -> dict:
-    tm = round(primer3.calc_tm(seq, **p.tm_args()), 1)
+    raw = primer3.calc_tm(seq, **p.tm_args())
+    tm = round(raw, 1)
     gc = 100 * sum(c in "GC" for c in seq) / len(seq)
-    return {"tm": tm, "gc": round(gc, 1), "end_gc": qpb.end_gc(seq), "run": qpb.max_run(seq),
+    return {"tm": tm, "raw": raw, "gc": round(gc, 1), "end_gc": qpb.end_gc(seq), "run": qpb.max_run(seq),
             "g_run": qpb.max_run(seq, "G"),
-            "rules": {"Tm": p.tm_min <= tm <= p.tm_max,
+            "rules": {"Tm": p.tm_min - p.tm_tol <= raw <= p.tm_max + p.tm_tol,
                       "GC": p.gc_min <= gc <= p.gc_max,
                       "3'G/C": qpb.end_gc(seq) <= p.max_end_gc,
                       "run": qpb.max_run(seq) <= p.max_poly_x and qpb.max_run(seq, "G") <= p.max_poly_g,
@@ -86,12 +88,13 @@ def main(argv=None):
     if not primers:
         ap.error("no primer found: expected a Primer Express export, or name <TAB> sequence [<TAB> Tm]")
     print("sequence\tlen\tTm_here\tTm_PE\tdiff\tGC%\t3'G/C\tlongest_run\tlongest_G\tfails")
-    diffs = []
+    diffs, same = [], 0
     for s, pe in primers.items():
         c = check(s, p)
         diff = None if pe is None else round(c["tm"] - pe, 1)
         if diff is not None:
             diffs.append(diff)
+            same += math.floor(c["raw"] + 0.5) == pe     # Primer Express shows whole degrees
         fails = ",".join(k for k, ok in c["rules"].items() if not ok) or "-"
         print(f'{s}\t{len(s)}\t{c["tm"]}\t{"" if pe is None else f"{pe:g}"}\t{"" if diff is None else diff}\t'
               f'{c["gc"]}\t{c["end_gc"]}\t{c["run"]}\t{c["g_run"]}\t{fails}')
@@ -99,7 +102,6 @@ def main(argv=None):
     print(f"\n{len(primers)} distinct primers; Tm: {p.tm_formula}, {p.salt_mono} mM Na+, {p.salt_div} mM Mg2+, "
           f"{p.dntp} mM dNTP, {p.dna_conc} nM oligo", file=out)
     if diffs:
-        same = sum(abs(round(t + d) - t) < 1e-9 for t, d in zip([pe for pe in primers.values() if pe is not None], diffs))
         line = f"Tm here - Tm Primer Express: mean {statistics.mean(diffs):+.2f} C"
         if len(diffs) >= 2:
             line += f", SD {statistics.stdev(diffs):.2f} C, range {min(diffs):+.1f} to {max(diffs):+.1f}"

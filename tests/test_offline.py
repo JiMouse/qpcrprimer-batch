@@ -157,7 +157,7 @@ def check_pair(m, g, a, b, p):
         return
     # the Primer Express rules
     for s, tm, gc in ((b["f_seq"], b["f_tm"], b["f_gc"]), (b["r_seq"], b["r_tm"], b["r_gc"])):
-        assert p.tm_min <= tm <= p.tm_max, (s, tm)
+        assert p.tm_min - p.tm_tol <= tm <= p.tm_max + p.tm_tol, (s, tm)
         assert p.gc_min <= gc <= p.gc_max, (s, gc)
         assert qpb.end_gc(s) <= p.max_end_gc, s
         assert qpb.max_run(s) <= p.max_poly_x and qpb.max_run(s, "G") <= p.max_poly_g, s
@@ -190,13 +190,14 @@ def test_defaults_are_the_primer_express_rules():
     assert (p.gc_min, p.gc_max) == (30.0, 80.0)
     assert (p.product_min, p.product_max) == (50, 150)
     assert p.size_opt == 20 and p.max_end_gc == 2 and p.max_poly_g == 3 and p.max_tm_diff == 2.0
+    assert p.max_poly_x == 6       # Primer Express accepts TTTTTT
     g = p.primer3_global()
     assert g["PRIMER_MAX_END_GC"] == 2 and g["PRIMER_GC_CLAMP"] == 0
-    assert (g["PRIMER_MIN_TM"], g["PRIMER_OPT_TM"], g["PRIMER_MAX_TM"]) == (58.0, 59.0, 60.0)
-    # Tm: Breslauer + Schildkraut, 50 mM Na+, 5 nM oligo, no Mg2+
+    # Tm: Breslauer + Schildkraut, 50 mM Na+, 4.8 nM oligo, no Mg2+
     assert (g["PRIMER_TM_FORMULA"], g["PRIMER_SALT_CORRECTIONS"]) == (0, 0)
     assert (g["PRIMER_SALT_MONOVALENT"], g["PRIMER_SALT_DIVALENT"], g["PRIMER_DNTP_CONC"],
-            g["PRIMER_DNA_CONC"]) == (50.0, 0.0, 0.0, 5.0)
+            g["PRIMER_DNA_CONC"]) == (50.0, 0.0, 0.0, 4.8)
+    assert (g["PRIMER_MIN_TM"], g["PRIMER_MAX_TM"]) == (58.0 - p.tm_tol, 60.0 + p.tm_tol)
 
 
 def test_penalty_is_primer_express():
@@ -210,7 +211,7 @@ def test_penalty_is_primer_express():
 
 def test_primer_express_tm():
     """Primer Express Tm = Breslauer 1986 with the Schildkraut salt term at
-    50 mM Na+ and 5 nM oligo - the formula UCSC In-Silico PCR uses at 50 nM,
+    50 mM Na+ and 4.8 nM oligo - the formula UCSC In-Silico PCR uses at 50 nM,
     so UCSC reads a few degrees higher for the same oligo."""
     import primer3
     p = qpb.Params()
@@ -617,7 +618,7 @@ def test_tm_settings_reach_primer3():
         for b in amp(gg, "3")["pairs"]:
             assert b["f_tm"] == round(primer3.calc_tm(b["f_seq"], **p.tm_args()), 1), p.tm_formula
     assert qpb.salt_params(None, "santalucia") == dict(salt_mono=50.0, salt_div=1.5, dntp=0.6, dna_conc=50.0)
-    assert qpb.salt_params(None, "primer-express")["dna_conc"] == 5.0
+    assert qpb.salt_params(None, "primer-express")["dna_conc"] == 4.8
 
 
 def test_structure_checks():

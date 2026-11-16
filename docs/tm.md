@@ -5,7 +5,7 @@ Three temperatures are reported; each has a single use.
 
 | column | what it is | use it for |
 |---|---|---|
-| **Tm** (`F Tm`, `R Tm`) | **Primer Express's Tm**: Breslauer 1986 nearest-neighbour with the Schildkraut–Lifson salt term, 50 mM Na⁺, 5 nM oligo, no Mg²⁺ — the value the design was selected on | the 58–60 °C rule, and comparing with Primer Express |
+| **Tm** (`F Tm`, `R Tm`) | **Primer Express's Tm**: Breslauer 1986 nearest-neighbour with the Schildkraut–Lifson salt term, 50 mM Na⁺, 4.8 nM oligo, no Mg²⁺ — the value the design was selected on | the 58–60 °C rule, and comparing with Primer Express |
 | Tm UCSC | what UCSC In-Silico PCR prints for the same oligo: the same formula at 50 nM | recognising the pair when you paste it into UCSC; it reads 3–5 °C higher |
 | **Product Tm** | Primer3's estimate of the amplicon's melting temperature | what to expect of the melt-curve peak |
 
@@ -13,9 +13,11 @@ Three temperatures are reported; each has a single use.
 
 It is not published; it was measured on a Primer Express export (see
 [Primer Express](primer-express.md)). The Breslauer tables with the Schildkraut salt term are the
-older formula UCSC still uses, which is why the two columns move together. At 5 nM oligo it gives
-Primer Express's number for 44 of 47 primers once rounded, and is within 0.5 °C for the rest. Any
-other export can be checked with `scripts/compare_primer_express.py`.
+older formula UCSC still uses, which is why the two columns move together. At 4.8 nM oligo it gives
+Primer Express's number for 130 of 133 primers once rounded (three exports); the other three sit
+within 0.06 °C of a rounding boundary. The 58–60 °C window is applied with that 0.06 °C tolerance, so
+every primer Primer Express accepted passes it here. Any other export can be checked with
+`scripts/compare_primer_express.py`.
 
 These are not the temperatures at which the primers anneal in your tube — every formula assumes
 its own conditions, and a qPCR master mix has more salt and magnesium. They are a scale to select

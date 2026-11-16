@@ -13,14 +13,19 @@ uniqueness elsewhere.
 
 ## Measured, not guessed
 
-Applied Biosystems does not publish the penalty formula or the Tm formula. Both were measured on a
-Primer Express 2.0 export of 200 primer sets (a TaqMan MGB document, 47 distinct primers), and
-`scripts/compare_primer_express.py` repeats the measurement on any export:
+Applied Biosystems does not publish the penalty formula or the Tm formula. Both were measured on
+three Primer Express 2.0 exports — TBX1, ELN and DNMT3A, TaqMan MGB documents, 600 primer sets and
+133 distinct primers — and `scripts/compare_primer_express.py` repeats the measurement on any
+export:
 
 | | formula | fit |
 |---|---|---|
-| **Penalty** | **5 × (amplicon − 50) + \|F length − 20\| + \|R length − 20\|** | 200 / 200 sets identical |
-| **Tm** | Breslauer 1986 nearest-neighbour, Schildkraut–Lifson salt term, 50 mM Na⁺, 5 nM oligo, no Mg²⁺ | 44 / 47 primers identical after rounding; the other 3 within 0.5 °C (rounding ties) |
+| **Penalty** | **5 × (amplicon − 50) + \|F length − 20\| + \|R length − 20\|** | **600 / 600 sets identical** |
+| **Tm** | Breslauer 1986 nearest-neighbour, Schildkraut–Lifson salt term, 50 mM Na⁺, 4.8 nM oligo, no Mg²⁺ | 130 / 133 primers identical once rounded to the degree Primer Express shows; the other 3 sit on a rounding boundary, within 0.06 °C |
+
+Primer Express's own constants differ very slightly from Breslauer's, so no setting of this formula
+matches all 133: the Tm window is applied with a 0.06 °C tolerance (`tm_tol`), with which **every
+primer of the three exports passes every rule here**, and none outside the window does.
 
 Within the rules, Tm, GC and the probe add nothing to the penalty: **it is almost entirely
 amplicon length**. Five points per base pair above 50 means the usual "penalty < 100" cut-off
@@ -40,11 +45,11 @@ Excel is the number Primer Express would show for the same pair.
 | GC 30–80 % | `PRIMER_MIN/MAX_GC` = 30 / 80 |
 | no more than two G/C among the last five 3′ bases | `PRIMER_MAX_END_GC` = 2 |
 | fewer than four consecutive G | no run of 4 G (checked on each candidate) |
-| runs of other bases | up to 5 (`PRIMER_MAX_POLY_X` = 5): the export contains runs of five C and five A |
-| optimal length 20 | penalty 1 per nt away from 20; lengths 16–30 (the export has 16 to 27) |
+| runs of other bases | up to 6 (`PRIMER_MAX_POLY_X` = 6): the exports contain runs of five A and C and six T |
+| optimal length 20 | penalty 1 per nt away from 20; lengths 16–30 (the exports have 16 to 27) |
 | amplicon 50–150 bp | product 50–150; penalty 5 per bp above 50 |
 
-Every one of the export's 47 primers passes all of these rules as applied here.
+Every one of the 133 primers of the three exports passes all of these rules as applied here.
 
 ## Differences that remain, on purpose
 

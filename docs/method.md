@@ -42,11 +42,11 @@ output (see [Primer Express](primer-express.md)):
 
 | | value | flag |
 |---|---|---|
-| primer Tm (Primer Express formula) | 58–60 °C | `--tm`, `--tm-formula` |
+| primer Tm (Primer Express formula) | 58–60 °C (± 0.06 °C, the formula's precision) | `--tm`, `--tm-formula` |
 | primer length | 16–30 nt, 20 costs nothing | `--size` |
 | primer GC | 30–80 % | `--gc` |
 | 3′ end | ≤ 2 G/C among the last five bases | `--max-end-gc` |
-| runs | no run of 4 G; other runs up to 5 | `--max-poly-g`, `--max-poly-x` |
+| runs | no run of 4 G; other runs up to 6 | `--max-poly-g`, `--max-poly-x` |
 | pair ΔTm | ≤ 2 °C | `--max-tm-diff` |
 | amplicon | 50–150 bp | `--product MIN OPT MAX` |
 | **penalty** | **5 × (amplicon − 50) + \|F length − 20\| + \|R length − 20\|**; a best pair at 100 or more is flagged | `--penalty-max` |

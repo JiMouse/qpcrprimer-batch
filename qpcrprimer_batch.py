@@ -20,11 +20,11 @@ The workflow it automates is the manual one:
 
 Primer Express quantification guidelines, enforced as hard rules:
   primer Tm 58-60 C, GC 30-80 %, no more than two G/C among the last five 3'
-  bases, no run of four G (runs of up to five other bases, as Primer Express
+  bases, no run of four G (runs of up to six other bases, as Primer Express
   accepts), amplicon 50-150 bp.
 Measured on Primer Express output and reproduced here:
   Tm      = Breslauer 1986 nearest-neighbour, Schildkraut salt term,
-            50 mM Na+, 5 nM oligo
+            50 mM Na+, 4.8 nM oligo (within ~0.06 C)
   penalty = 5 x (amplicon - 50) + |F length - 20| + |R length - 20|
 
 Placement (genomic DNA, e.g. exon copy-number confirmation): the amplicon
@@ -331,17 +331,20 @@ class Params:
     gc_max: float = 80.0
     max_end_gc: int = 2         # G/C among the last five 3' bases
     max_poly_g: int = 3         # longest run of G (Primer Express: fewer than four)
-    max_poly_x: int = 5         # longest run of any other base (Primer Express accepts five)
+    max_poly_x: int = 6         # longest run of any other base (Primer Express accepts six T)
     gc_clamp: int = 0           # PE has none; a clamp would fight max_end_gc
     max_tm_diff: float = 2.0
     # Tm - Primer Express's formula, measured on its output: Breslauer 1986 with
-    # the Schildkraut-Lifson salt term, 50 mM Na+, 5 nM oligo, no Mg2+ (docs/tm.md).
+    # the Schildkraut-Lifson salt term, 50 mM Na+, 4.8 nM oligo, no Mg2+ (docs/tm.md).
+    # It matches Primer Express to within ~0.06 C, so the window is applied with
+    # that tolerance: every primer Primer Express accepted passes it.
     # tm_formula "santalucia" uses SantaLucia 1998 and the salt values below as given.
     tm_formula: str = "primer-express"
     salt_mono: float = 50.0
     salt_div: float = 0.0
     dntp: float = 0.0
-    dna_conc: float = 5.0
+    dna_conc: float = 4.8
+    tm_tol: float = 0.06
     num_return: int = 3
     relax: bool = True
     # safeguards
@@ -381,7 +384,8 @@ class Params:
             "PRIMER_TASK": "generic", "PRIMER_PICK_LEFT_PRIMER": 1, "PRIMER_PICK_RIGHT_PRIMER": 1,
             "PRIMER_PICK_INTERNAL_OLIGO": 0,
             "PRIMER_OPT_SIZE": self.size_opt, "PRIMER_MIN_SIZE": self.size_min, "PRIMER_MAX_SIZE": self.size_max,
-            "PRIMER_OPT_TM": self.tm_opt, "PRIMER_MIN_TM": self.tm_min, "PRIMER_MAX_TM": self.tm_max,
+            "PRIMER_OPT_TM": self.tm_opt,
+            "PRIMER_MIN_TM": self.tm_min - self.tm_tol, "PRIMER_MAX_TM": self.tm_max + self.tm_tol,
             "PRIMER_MIN_GC": self.gc_min, "PRIMER_MAX_GC": self.gc_max,
             "PRIMER_GC_CLAMP": self.gc_clamp, "PRIMER_MAX_END_GC": self.max_end_gc,
             "PRIMER_PAIR_MAX_DIFF_TM": self.max_tm_diff, "PRIMER_MAX_POLY_X": self.max_poly_x,
@@ -405,7 +409,7 @@ class Params:
         }
         if relaxed:
             g.update({
-                "PRIMER_MIN_TM": self.tm_min - 1, "PRIMER_MAX_TM": self.tm_max + 1,
+                "PRIMER_MIN_TM": self.tm_min - 1 - self.tm_tol, "PRIMER_MAX_TM": self.tm_max + 1 + self.tm_tol,
                 "PRIMER_MIN_SIZE": max(16, self.size_min - 2), "PRIMER_MAX_SIZE": self.size_max + 2,
                 "PRIMER_MIN_GC": max(20.0, self.gc_min - 5), "PRIMER_MAX_GC": min(85.0, self.gc_max + 5),
                 "PRIMER_MAX_END_GC": self.max_end_gc + 1, "PRIMER_MAX_POLY_X": self.max_poly_x + 1,
@@ -1269,8 +1273,9 @@ MEANING = {
     "gc_max": "Maximal primer GC % - Primer Express: 80",
     "max_end_gc": "Most G/C allowed among the five 3'-terminal bases - Primer Express: 2",
     "max_poly_g": "Longest run of G - Primer Express: fewer than four consecutive G",
-    "max_poly_x": "Longest run of any base - Primer Express accepts five C or A in a row",
-    "tm_formula": "primer-express = Breslauer 1986 + Schildkraut salt term at 50 mM Na+, 5 nM oligo, as "
+    "max_poly_x": "Longest run of any base - Primer Express accepts six T in a row",
+    "tm_tol": "Tolerance on the Tm window (°C): the Tm formula matches Primer Express to within ~0.06 °C",
+    "tm_formula": "primer-express = Breslauer 1986 + Schildkraut salt term at 50 mM Na+, 4.8 nM oligo, as "
                   "measured on Primer Express output; santalucia = SantaLucia 1998 with the salt values below",
     "gc_clamp": "Primer3 GC clamp (0: Primer Express has none, and it would fight max_end_gc)",
     "max_tm_diff": "Largest |Tm(F) - Tm(R)| accepted for a pair (°C)",
@@ -1331,7 +1336,7 @@ def write_json(results, errors, p: Params, out_dir: str, assembly: str, ispcr_ra
 # --------------------------------------------------------------------------
 def salt_params(salt, formula: str) -> dict:
     if salt is None:
-        salt = [50.0, 0.0, 0.0, 5.0] if formula == "primer-express" else [50.0, 1.5, 0.6, 50.0]
+        salt = [50.0, 0.0, 0.0, 4.8] if formula == "primer-express" else [50.0, 1.5, 0.6, 50.0]
     return dict(salt_mono=salt[0], salt_div=salt[1], dntp=salt[2], dna_conc=salt[3])
 
 
@@ -1359,7 +1364,7 @@ def main(argv=None, ensembl=None, ucsc=None):
     g2.add_argument("--gc", type=float, nargs=2, metavar=("MIN", "MAX"), default=[d.gc_min, d.gc_max])
     g2.add_argument("--max-end-gc", type=int, default=d.max_end_gc, help="G/C among the last 5 bases (default 2)")
     g2.add_argument("--max-poly-g", type=int, default=d.max_poly_g, help="longest run of G (default 3)")
-    g2.add_argument("--max-poly-x", type=int, default=d.max_poly_x, help="longest run of any base (default 5)")
+    g2.add_argument("--max-poly-x", type=int, default=d.max_poly_x, help="longest run of any base (default 6)")
     g2.add_argument("--penalty-max", type=float, default=d.penalty_max,
                     help="flag a best pair at or above this Primer Express penalty (default 100)")
     g2.add_argument("--max-tm-diff", type=float, default=d.max_tm_diff)
@@ -1370,7 +1375,7 @@ def main(argv=None, ensembl=None, ucsc=None):
                          "under --salt (default for it: 50 1.5 0.6 50, a PCR buffer)")
     g2.add_argument("--salt", type=float, nargs=4, metavar=("MONO_MM", "DIV_MM", "DNTP_MM", "DNA_NM"),
                     help="Tm conditions: monovalent mM, divalent mM, dNTP mM, oligo nM "
-                         "(default 50 0 0 5 for primer-express)")
+                         "(default 50 0 0 4.8 for primer-express)")
     g3 = ap.add_argument_group("SNPs, repeats, uniqueness")
     g3.add_argument("--snp-maf", type=float, default=d.snp_maf, help="avoid SNPs with MAF >= this (default 0.01)")
     g3.add_argument("--snp-3prime", type=int, default=d.snp_3prime, help="no SNP allowed in this many 3' bases")
