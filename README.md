@@ -34,7 +34,7 @@ the Sanger primers; same gene list, same transcripts, same architecture.
 
 ## In short
 
-For each gene in `genes.txt` (the exonprimer-batch panel, 6,437 genes) and each region in
+For each gene in `genes.txt` (every protein-coding gene with a MANE Select transcript, 19,435 symbols) and each region in
 `regions.txt`:
 
 - **one target per coding exon** (the coding part by default, `--target full` for the whole exon);

@@ -78,6 +78,20 @@ Tune it from the **Actions** tab: `chunk_size` (genes per job, default 150) and 
 (concurrent jobs, default 4). **Keep `max_parallel` low** — every job queries Ensembl and UCSC,
 and parallel jobs multiply that load on public servers.
 
+The full list — about 19,400 genes, 130 chunks — takes **about 8 hours** with the defaults. The
+workflow cancels a running build when a newer one starts, so push nothing that triggers it
+(`genes.txt`, `regions.txt`, the script, `scripts/`, `site/index.html`) until it has deployed.
+If a chunk fails (a Ensembl or UCSC hiccup), nothing is deployed: re-run the failed jobs, and the
+finished chunks come back from their cache.
+
+### Refreshing the gene list
+
+`genes.txt` is every protein-coding gene with a **MANE Select** transcript, from NCBI's MANE
+summary file, plus a few symbols kept from the earlier panel that MANE does not list. To pick up a
+new MANE release, run **Actions → Refresh gene list**: it runs `scripts/protein_coding_genes.py`,
+which keeps the header and any transcript overrides, and attaches the new `genes.txt` with a
+report of the symbols added and removed (also printed in the run log). Review it, then commit it.
+
 ### Changing the website without rebuilding the data
 
 The built data is also published as an asset on the `data-cache` prerelease, named after a
