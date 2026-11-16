@@ -1,0 +1,44 @@
+name: Refresh gene list (all protein-coding genes)
+
+# Run by hand (Actions tab -> "Refresh gene list" -> Run workflow). Rebuilds
+# genes.txt from NCBI's current MANE summary - every protein-coding gene with a
+# MANE Select transcript - keeping the header and any transcript overrides of
+# the current list. Nothing is committed: the new genes.txt and a report are
+# attached to the run as the "gene-list" artifact, to review and commit.
+on:
+  workflow_dispatch:
+    inputs:
+      keep_unknown:
+        description: Keep symbols of the current list that are not in MANE
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  gene-list:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Build genes.txt from MANE
+        run: |
+          mkdir -p out
+          python scripts/protein_coding_genes.py --genes genes.txt --out out/genes.txt \
+            ${{ inputs.keep_unknown && '--keep-unknown' || '' }} | tee out/report.txt
+          diff <(grep -v '^#' genes.txt | awk '{print $1}' | sort) \
+               <(grep -v '^#' out/genes.txt | awk '{print $1}' | sort) \
+               | grep '^[<>]' | sed 's/^</removed:/; s/^>/added:/' > out/diff.txt || true
+          echo "$(grep -c '^added' out/diff.txt) added, $(grep -c '^removed' out/diff.txt) removed" | tee -a out/report.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: gene-list
+          path: out
