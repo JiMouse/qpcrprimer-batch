@@ -40,5 +40,5 @@ status, the assay panel (names, both primers, product Tm, penalty, placement, 3�
 UCSC link), that warnings are HTML-escaped, the region search — a range inside one exon, over a
 whole gene, a point in an intron (the exons either side), a minus-strand gene, a custom region, a
 range outside the build — and that genes on other chromosomes are never fetched, routing of
-symbols, region names and coordinates, and the exports: order rows (`GENE-qE<n>-F`, seven
-tab-separated columns in the order of the synthesis order sheet) and the TSV.
+symbols, region names and coordinates, and the exports: order rows (`GENE-e<n>-1F`, seven
+tab-separated columns in the order of the Eurogentec "Custom Oligos" sheet) and the TSV.

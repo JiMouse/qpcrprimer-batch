@@ -83,8 +83,10 @@ Genome-wide in-silico PCR and the GitHub workflow are in
 | Problems | Genes not found, targets without primers |
 | Parameters | All settings used |
 
-Primer names carry a `q` — `PTEN_qE5F`, ordered as `PTEN-qE5-F` — so a qPCR primer never shares
-a name with the Sanger primer of the same exon (`PTEN_E5F`).
+Primer names on the page carry a `q` — `PTEN_qE5F` — so a qPCR primer never shares a name with
+the Sanger primer of the same exon (`PTEN_E5F`). The order rows follow the lab's qPCR naming,
+`PTEN-e5-1F` / `PTEN-e5-1R` (a custom region: `NAME-1F`), with the lab's Eurogentec parameters:
+10 nmol (Unmodified 10-79 bases), RP-Cartridge - Gold, H2O-100 µM.
 
 ## Before ordering primers
 

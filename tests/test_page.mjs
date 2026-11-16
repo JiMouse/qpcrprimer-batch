@@ -207,12 +207,13 @@ const rows = api.orderPair(g, g.amplicons[0], g.amplicons[0].pairs[0]).split('\n
 ok(rows.length === 2, 'one order line per oligo');
 const cols = rows[0].split('\t');
 ok(cols.length === 7, `seven columns (got ${cols.length})`);
-ok(cols[0] === 'PLUSG-qE2-F' && rows[1].split('\t')[0] === 'PLUSG-qE2-R', `names are GENE-qE<n>-F/R (got "${cols[0]}")`);
+ok(cols[0] === 'PLUSG-e2-1F' && rows[1].split('\t')[0] === 'PLUSG-e2-1R', `names are GENE-e<n>-1F/1R (got "${cols[0]}")`);
 ok(cols[1] === 'ACGTACGTACGTACGTACGT' && cols[2] === '20' && cols[3] === '', 'sequence, length, empty control cell');
-ok(cols[4] === '40 nmol (10-99 bases)' && cols[5] === 'RP-HPLC' && cols[6] === 'H2O-100 µM', 'fixed order parameters');
+ok(cols[4] === '10 nmol (Unmodified 10-79 bases)' && cols[5] === 'RP-Cartridge - Gold' && cols[6] === 'H2O-100 µM',
+   'order parameters of the lab\'s Eurogentec qPCR orders');
 ok(api.geneOrder(g).split('\n').length === 4, 'gene order rows: 2 amplicons x 2 oligos');
 const r = await api.loadGene('REG1');
-ok(api.orderPair(r, r.amplicons[0], r.amplicons[0].pairs[0]).startsWith('REG1-q-F\t'), 'a region is named REGION-q-F');
+ok(api.orderPair(r, r.amplicons[0], r.amplicons[0].pairs[0]).startsWith('REG1-1F\t'), 'a region is named REGION-1F');
 const tsv = api.geneTSV(g).split('\n');
 ok(tsv[0].startsWith('Name\tSequence') && tsv.length === 5, 'TSV: header + 2 lines per amplicon');
 ok(tsv[1].startsWith('PLUSG_qE2F\tACGT'), 'TSV lines carry name and sequence');

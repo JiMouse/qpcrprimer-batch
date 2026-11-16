@@ -424,13 +424,13 @@ function notInPanel(text){
 
 /* ---------- exports -------------------------------------------------------
    Order rows: one line per oligo, tab separated, in the column order of the
-   batch order sheet used for exonprimer-batch: name, sequence, length,
-   "PCR positive control" (empty), then three fixed parameters. Names are
-   GENE-qE<exon>-F / -R, so a qPCR primer never shares a name with the
-   Sanger primer of the same exon.                                        */
-const ORDER_SCALE = '40 nmol (10-99 bases)', ORDER_PURIF = 'RP-HPLC', ORDER_FORMAT = 'H2O-100 µM';
+   "Custom Oligos" sheet of the Eurogentec batch order file: name, sequence,
+   length, "PCR positive control" (empty), then the three parameters the lab
+   uses for qPCR primers. Names follow the lab's qPCR convention,
+   GENE-e<exon>-1F / -1R (a custom region: NAME-1F / -1R).               */
+const ORDER_SCALE = '10 nmol (Unmodified 10-79 bases)', ORDER_PURIF = 'RP-Cartridge - Gold', ORDER_FORMAT = 'H2O-100 µM';
 
-function orderName(gene, a, dir){ return isRegion(gene) ? `${gene.gene}-q-${dir}` : `${gene.gene}-qE${a.label}-${dir}`; }
+function orderName(gene, a, dir){ return isRegion(gene) ? `${gene.gene}-1${dir}` : `${gene.gene}-e${a.label}-1${dir}`; }
 function orderRow(name, seq){ return [name, seq, seq.length, '', ORDER_SCALE, ORDER_PURIF, ORDER_FORMAT].join('\t'); }
 function orderPair(gene, a, b){
   return orderRow(orderName(gene,a,'F'), b.f_seq) + '\n' + orderRow(orderName(gene,a,'R'), b.r_seq);
