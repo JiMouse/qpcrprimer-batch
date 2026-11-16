@@ -38,6 +38,13 @@ jobs:
                | grep '^[<>]' | sed 's/^</removed:/; s/^>/added:/' > out/diff.txt || true
           echo "$(grep -c '^added' out/diff.txt) added, $(grep -c '^removed' out/diff.txt) removed" | tee -a out/report.txt
 
+      # Also in the log, between markers, for anyone who cannot fetch artifacts.
+      - name: Print the new list
+        run: |
+          echo "=====BEGIN genes.txt====="
+          cat out/genes.txt
+          echo "=====END genes.txt====="
+
       - uses: actions/upload-artifact@v7
         with:
           name: gene-list
