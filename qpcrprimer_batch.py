@@ -77,7 +77,7 @@ SNP_TRACK, RMSK_TRACK, SEGDUP_TRACK = "dbSnp155Common", "rmsk", "genomicSuperDup
 # the finished design - never masked, never a reason for Check.
 ALL_SNP_TRACK = "dbSnp155"
 DBSNP_BIGBED = "https://hgdownload.soe.ucsc.edu/gbdb/{db}/snp/dbSnp155.bb"
-# bigDbSnp.as column order, used when bigBedToBed prints no header
+# bigDbSnp.as column order (the fields of dbSnp155.bb)
 BIGDBSNP_COLS = ["chrom", "chromStart", "chromEnd", "name", "ref", "altCount", "alts", "shiftBases",
                  "freqSourceCount", "minorAlleleFreq", "majorAllele", "minorAllele", "maxFuncImpact",
                  "class", "ucscNotes", "_dataOffset", "_dataLen"]
@@ -319,7 +319,7 @@ def max_maf(v) -> float | None:
 
 
 def variant_record(it: dict) -> dict:
-    """A dbSNP item (UCSC API or bigBedToBed row) as {rs, chrom, start, end, maf};
+    """A dbSNP item (UCSC API or bigBed row) as {rs, chrom, start, end, maf};
     1-based inclusive, an insertion placed on the base after it, maf = the
     highest minor-allele frequency across dbSNP sources, kept to 3 significant
     digits so a 1-in-100,000 variant does not round to zero."""
@@ -327,18 +327,6 @@ def variant_record(it: dict) -> dict:
     maf = max_maf(it.get("minorAlleleFreq"))
     return {"rs": it.get("name", ""), "chrom": it.get("chrom", ""), "start": s0 + 1, "end": max(e0, s0 + 1),
             "maf": None if maf is None else float(f"{maf:.3g}")}
-
-
-def parse_bigbed_variants(lines: list[str]) -> list[dict]:
-    cols, out = BIGDBSNP_COLS, []
-    for line in lines:
-        if line.startswith("#"):
-            cols = line.lstrip("#").split("\t")
-            continue
-        f = line.rstrip("\n").split("\t")
-        if len(f) >= 10:
-            out.append(variant_record(dict(zip(cols, f))))
-    return out
 
 
 def merge_windows(windows) -> list[tuple[str, int, int]]:
@@ -351,26 +339,145 @@ def merge_windows(windows) -> list[tuple[str, int, int]]:
     return out
 
 
-def bigbed_variants(exe: str, bigbed: str, windows, udc_dir: str | None = None, log=print) -> list[dict] | None:
-    """Every dbSNP item overlapping any window, in ONE bigBedToBed call: it reads
-    only the blocks of the (remote) bigBed that the windows touch, so a whole
-    chunk of genes costs a few MB instead of one UCSC API request per exon."""
-    merged = merge_windows(windows)
-    if not merged:
+class RangeReader:
+    """Byte ranges of a local file or a URL. Over HTTP: one keep-alive session,
+    each range retried with a growing pause, so a busy server slows the read
+    down instead of failing it (bigBedToBed's one-connection-per-block reads
+    were refused by hgdownload from GitHub runners)."""
+    def __init__(self, src: str, tries: int = 6, pause: float = 5.0, log=print):
+        self.src, self.tries, self.pause, self.log = src, tries, pause, log
+        self.http = src.startswith(("http://", "https://"))
+        self.requests = 0
+        if self.http:
+            self.session = requests.Session()
+            self.session.headers["User-Agent"] = f"qpcrprimer-batch/{__version__}"
+        else:
+            self.fh = open(src, "rb")
+
+    def read(self, off: int, n: int) -> bytes:
+        self.requests += 1
+        if not self.http:
+            self.fh.seek(off)
+            return self.fh.read(n)
+        last = None
+        for k in range(self.tries):
+            try:
+                r = self.session.get(self.src, headers={"Range": f"bytes={off}-{off + n - 1}"}, timeout=120)
+                if r.status_code == 206:
+                    return r.content
+                if r.status_code == 200:            # server ignored the range
+                    return r.content[off:off + n]
+                last = f"HTTP {r.status_code}"
+            except requests.RequestException as ex:
+                last = ex
+            if k < self.tries - 1:
+                time.sleep(min(self.pause * 2 ** k, 120))
+        raise RuntimeError(f"range {off}+{n} of {self.src} failed {self.tries} times ({last})")
+
+    def read_many(self, spans: list[tuple[int, int]], gap: int = 256 << 10, cap: int = 8 << 20) -> dict:
+        """{(off, n): bytes} for many spans, nearby ones fetched in one request."""
+        out, group = {}, []
+
+        def flush():
+            if group:
+                g0 = group[0][0]
+                g1 = max(o + n for o, n in group)
+                blob = self.read(g0, g1 - g0)
+                for o, n in group:
+                    out[(o, n)] = blob[o - g0:o - g0 + n]
+                group.clear()
+        for o, n in sorted(set(spans)):
+            if group and (o > max(x + m for x, m in group) + gap or o + n - group[0][0] > cap):
+                flush()
+            group.append((o, n))
+        flush()
+        return out
+
+
+def bigbed_query(reader: RangeReader, windows) -> list[dict]:
+    """Every item of a bigBed overlapping any window (chrom, start, end; 1-based),
+    as {"chrom", "chromStart", "chromEnd", <autoSql fields>}. Reads the header,
+    the chromosome B+ tree, then the R-tree one level at a time for all windows
+    together, and finally the zlib data blocks - nearby reads merged."""
+    import struct
+    import zlib
+    from bisect import bisect_right
+    hdr = reader.read(0, 64)
+    if struct.unpack("<I", hdr[:4])[0] != 0x8789F2EB:
+        raise ValueError(f"{reader.src}: not a bigBed file")
+    (_, _, _, chrom_tree, _, index_off, _, _, _, _, ubuf, _) = struct.unpack("<IHHQQQHHQQIQ", hdr)
+    # chromosome B+ tree: name -> id
+    th = reader.read(chrom_tree, 32)
+    _, bsize, ksize, _, _, _ = struct.unpack("<IIIIQQ", th)
+    ids, todo = {}, [chrom_tree + 32]
+    while todo:
+        off = todo.pop()
+        node = reader.read(off, 4 + bsize * (ksize + 8))
+        leaf, _, cnt = struct.unpack("<BBH", node[:4])
+        for i in range(cnt):
+            item = node[4 + i * (ksize + 8):4 + (i + 1) * (ksize + 8)]
+            key = item[:ksize].rstrip(b"\0").decode()
+            if leaf:
+                ids[key] = struct.unpack("<I", item[ksize:ksize + 4])[0]
+            else:
+                todo.append(struct.unpack("<Q", item[ksize:])[0])
+    names = {v: k for k, v in ids.items()}
+    # windows as (chromIx, start0, end0), sorted, for overlap tests
+    wins = sorted((ids[c], s - 1, e) for c, s, e in merge_windows(windows) if c in ids)
+    if not wins:
         return []
-    with tempfile.TemporaryDirectory() as td:
-        reg, out = Path(td) / "windows.bed", Path(td) / "variants.bed"
-        reg.write_text("".join(f"{c}\t{s - 1}\t{e}\n" for c, s, e in merged))
-        cmd = [exe, f"-bed={reg}", bigbed, str(out)]
-        if udc_dir:
-            cmd.insert(1, f"-udcDir={udc_dir}")
-        log(f"Listing dbSNP variants under the primers ({len(merged)} windows, bigBedToBed) ...")
-        try:
-            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=7200)
-        except (OSError, subprocess.SubprocessError) as ex:
-            log(f"warning: bigBedToBed failed, rare variants not listed ({getattr(ex, 'stderr', '') or ex})")
-            return None
-        return parse_bigbed_variants(out.read_text().splitlines())
+    wkeys = [(c, s) for c, s, _ in wins]
+
+    def touches(sc, sb, ec, eb):
+        # merged windows do not overlap, so the last one starting before the
+        # item ends is the only one that can reach back into it
+        i = bisect_right(wkeys, (ec, eb))
+        return i > 0 and (wins[i - 1][0], wins[i - 1][2]) > (sc, sb)
+    # R-tree, level by level
+    ih = reader.read(index_off, 48)
+    rblock = struct.unpack("<I", ih[4:8])[0]
+    level, blocks = [index_off + 48], []
+    while level:
+        nodes = reader.read_many([(o, 4 + rblock * 32) for o in level])
+        nxt = []
+        for (o, _), node in nodes.items():
+            leaf, _, cnt = struct.unpack("<BBH", node[:4])
+            size = 32 if leaf else 24
+            for i in range(cnt):
+                f = struct.unpack("<IIIIQQ" if leaf else "<IIIIQ", node[4 + i * size:4 + (i + 1) * size])
+                if touches(*f[:4]):
+                    (blocks.append((f[4], f[5])) if leaf else nxt.append(f[4]))
+        level = nxt
+    out = []
+    for (_, _), blob in reader.read_many(blocks).items():
+        data = zlib.decompress(blob) if ubuf else blob
+        i = 0
+        while i < len(data):
+            cid, st, en = struct.unpack("<III", data[i:i + 12])
+            j = data.index(b"\0", i + 12)
+            rest = data[i + 12:j].decode()
+            i = j + 1
+            if touches(cid, st, cid, max(en, st + 1)):
+                row = {"chrom": names.get(cid, ""), "chromStart": st, "chromEnd": en}
+                row.update(zip(BIGDBSNP_COLS[3:], rest.split("\t")))
+                out.append(row)
+    return out
+
+
+def bigbed_variants(bigbed: str, windows, log=print, reader: RangeReader | None = None) -> list[dict] | None:
+    """Every dbSNP item overlapping any window, read straight from dbSnp155.bb
+    (local or remote): only the index nodes and data blocks the windows touch."""
+    if not windows:
+        return []
+    log(f"Listing dbSNP variants under the primers ({len(merge_windows(windows))} windows, {bigbed}) ...")
+    try:
+        reader = reader or RangeReader(bigbed, log=log)
+        rows = bigbed_query(reader, windows)
+    except Exception as ex:
+        log(f"warning: dbSNP bigBed not read, rare variants not listed ({ex})")
+        return None
+    log(f"    {len(rows)} dbSNP items in {reader.requests} reads")
+    return [variant_record(r) for r in rows]
 
 
 def assign_to_windows(variants: list[dict], windows) -> dict:
@@ -1408,9 +1515,9 @@ def api_fetcher(ucsc, log=print):
     return fetch
 
 
-def bigbed_fetcher(exe: str, bigbed: str, udc_dir: str | None = None, log=print):
+def bigbed_fetcher(bigbed: str, log=print):
     def fetch(windows):
-        vs = bigbed_variants(exe, bigbed, windows, udc_dir, log)
+        vs = bigbed_variants(bigbed, windows, log)
         return {} if vs is None else assign_to_windows(vs, windows)
     return fetch
 
@@ -1790,10 +1897,9 @@ def main(argv=None, ensembl=None, ucsc=None):
     g3.add_argument("--ispcr-max-size", type=int, default=d.ispcr_max_size)
     g4 = ap.add_argument_group("Rare SNPs under primers (listed, never avoided)")
     g4.add_argument("--no-rare-snps", action="store_true", help="do not list rare dbSNP variants under primers")
-    g4.add_argument("--bigbedtobed", help="UCSC bigBedToBed executable: one batched read of dbSnp155.bb "
-                                          "instead of one UCSC API request per target (use for large runs)")
-    g4.add_argument("--dbsnp-bigbed", help="dbSnp155.bb path or URL (default: UCSC's, for --assembly)")
-    g4.add_argument("--udc-dir", help="bigBedToBed cache directory for the remote file")
+    g4.add_argument("--dbsnp-bigbed", nargs="?", const="ucsc", metavar="PATH_OR_URL",
+                    help="read dbSnp155.bb directly, in a few batched range reads, instead of one UCSC API request "
+                         "per target (use for large runs); without a value, UCSC's file for --assembly")
     a = ap.parse_args(argv)
     if not a.genes and not a.regions:
         ap.error("give a gene list, --regions, or both")
@@ -1882,9 +1988,9 @@ def main(argv=None, ensembl=None, ucsc=None):
     rare_ran = False
     if not a.no_rare_snps:
         fetch = None
-        if a.bigbedtobed:
-            fetch = bigbed_fetcher(a.bigbedtobed, a.dbsnp_bigbed or DBSNP_BIGBED.format(db=UCSC_DB[a.assembly]),
-                                   a.udc_dir, log)
+        if a.dbsnp_bigbed:
+            src = DBSNP_BIGBED.format(db=UCSC_DB[a.assembly]) if a.dbsnp_bigbed == "ucsc" else a.dbsnp_bigbed
+            fetch = bigbed_fetcher(src, log)
         elif ucsc is not None and not a.no_ucsc:
             fetch = api_fetcher(ucsc, log)
         if fetch:

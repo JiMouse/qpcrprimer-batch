@@ -104,8 +104,9 @@ ABCC6 exon 29 — mostly at 1 in 10,000 to 1 in 1,000,000, so these never change
 ranking or the status: an assay with only rare variants under its primers stays **OK**. They are
 there so that, for a patient whose own variant is known, you can see at once whether it falls under
 a primer. On the website they are hidden until **Show rare SNPs under primers** is ticked (the
-choice is remembered in the browser); the Excel workbook always has them, in two `(info)` columns. In the build they are read in one batch from UCSC's `dbSnp155.bb` with `bigBedToBed`
-(`--bigbedtobed`); without it, one UCSC API request per target (fine for a few genes).
+choice is remembered in the browser); the Excel workbook always has them, in two `(info)` columns. In the build they are read straight from UCSC's `dbSnp155.bb` (`--dbsnp-bigbed`): only the index
+nodes and data blocks under the amplicons, in batched range requests over one connection, each
+retried with a growing pause; without it, one UCSC API request per target (fine for a few genes).
 `--no-rare-snps` turns the listing off. The highest frequency over all sources can be high for a
 variant seen once in a very small cohort; that is the number SNPCheck and dbSNP show too.
 

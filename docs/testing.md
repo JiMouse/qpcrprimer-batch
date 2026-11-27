@@ -30,8 +30,9 @@ included, so the fast paths are the ones under test). It checks:
   single-primer product that ranks the pair down; the product geometry; a failed scan not fatal;
 - rare variants: every dbSNP variant under a primer listed with the right distance from the 3′ end
   on both strands (an indel counted from its base nearest the 3′ end), a common SNP not listed
-  twice, the design and the status unchanged; the batched bigBedToBed path (rows with or without a
-  header, insertions, windows merged and assigned), and its failure reported as a note, not fatal;
+  twice, the design and the status unchanged; the bigBed reader on a real bigBed written by the test
+  (two-level R-tree, compressed or not, insertions, a deletion reaching into a window), over HTTP
+  with byte ranges, dropped requests retried and nearby reads merged, windows merged and assigned, and its failure reported as a note, not fatal;
 - repeats avoided, or accepted only in a primer's 5′ part when nothing else fits;
 - segmental-duplication alerts; an off-target in-silico PCR product moves a pair down, and a
   target with no specific pair is Check;
