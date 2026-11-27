@@ -379,6 +379,118 @@ def test_snps_between_primers_are_noted_not_flagged():
     assert any("rs999" in n for n in a["notes"])
 
 
+# ---------------------------------------------------------------- perfect matches
+def write_2bit(path, seqs):
+    """A UCSC .2bit (version 0, little-endian) with N and soft-mask blocks."""
+    import re
+    import struct
+    code = {"T": 0, "C": 1, "A": 2, "G": 3}
+    names = list(seqs)
+    header = struct.pack("<IIII", 0x1A412743, 0, len(names), 0)
+    index_len = sum(1 + len(n) + 4 for n in names)
+    blobs, off = [], len(header) + index_len
+    index = b""
+    for n in names:
+        sq = seqs[n]
+        nb = [(m.start(), m.end() - m.start()) for m in re.finditer(r"[Nn]+", sq)]
+        mb = [(m.start(), m.end() - m.start()) for m in re.finditer(r"[a-z]+", sq)]
+        body = struct.pack("<II", len(sq), len(nb)) + b"".join(struct.pack("<I", x) for x, _ in nb) \
+            + b"".join(struct.pack("<I", y) for _, y in nb) + struct.pack("<I", len(mb)) \
+            + b"".join(struct.pack("<I", x) for x, _ in mb) + b"".join(struct.pack("<I", y) for _, y in mb) \
+            + struct.pack("<I", 0)
+        up = sq.upper().replace("N", "T") + "T" * (-len(sq) % 4)
+        body += bytes((code[up[i]] << 6) | (code[up[i + 1]] << 4) | (code[up[i + 2]] << 2) | code[up[i + 3]]
+                      for i in range(0, len(up), 4))
+        index += bytes([len(n)]) + n.encode() + struct.pack("<I", off)
+        blobs.append(body)
+        off += len(body)
+    Path(path).write_bytes(header + index + b"".join(blobs))
+
+
+def test_read_2bit():
+    with tempfile.TemporaryDirectory() as td:
+        seqs = {"chr1": CHROM, "chrS": "ACGTNNNNacgtA", "chr1_KI0001v1_alt": "ACGT"}
+        write_2bit(Path(td) / "g.2bit", seqs)
+        got = dict(qpb.read_2bit(str(Path(td) / "g.2bit"), skip=lambda n: not qpb.main_assembly_contig(n)))
+        assert got == {"chr1": CHROM.upper(), "chrS": "ACGTNNNNACGTA"}
+
+
+def hits_genome(td, b):
+    """chr2: an exact copy of F (another site, no product); chr3: F then its
+    reverse complement 300 bp later (F alone makes a product); an alt contig
+    copy of F, ignored."""
+    spacer = "".join(random.Random(3).choice("ACGT") for _ in range(300))
+    pad = "".join(random.Random(4).choice("ACGT") for _ in range(500))
+    seqs = {"chr1": CHROM, "chr2": pad + b["f_seq"] + pad,
+            "chr3": pad + b["f_seq"] + spacer + rc(b["f_seq"]) + pad,
+            "chr2_KI0001v1_alt": pad + b["f_seq"] + pad}
+    write_2bit(Path(td) / "g.2bit", seqs)
+    return str(Path(td) / "g.2bit")
+
+
+def test_primer_hits_on_both_strands():
+    p = qpb.Params()
+    for sym in GENES:
+        _, g = run(sym, p)
+        with tempfile.TemporaryDirectory() as td:
+            write_2bit(Path(td) / "g.2bit", {"chr1": CHROM})
+            assert qpb.run_primer_hits([g], str(Path(td) / "g.2bit"), p, log=quiet)
+        for a in g["amplicons"]:
+            for b in a["candidates"]:
+                h = b["hits"]
+                assert h["f_on_target"] and h["r_on_target"], (sym, a["label"])   # its own site, found
+                assert h["f_n"] == h["r_n"] == 0 and not h["f_products"] and not h["r_products"]
+
+
+def test_other_perfect_site_is_information_single_primer_product_is_flagged():
+    p = qpb.Params()
+    _, g = run("PLUSGENE", p)
+    a = amp(g, "3")
+    first = a["candidates"][0]
+    with tempfile.TemporaryDirectory() as td:
+        assert qpb.run_primer_hits([g], hits_genome(td, first), p, log=quiet)
+    h = first["hits"]
+    assert h["f_n"] == 3, h                                   # chr2, and chr3 twice; the alt copy ignored
+    assert any(x.startswith("chr2:501-") and x.endswith("(+)") for x in h["f_sites"])
+    assert any(x.endswith("(-)") for x in h["f_sites"])
+    n = len(first["f_seq"])
+    assert h["f_products"] == [f"chr3:501-{500 + 2 * n + 300} ({2 * n + 300} bp)"]
+    qpb.finalize_gene(g, p)
+    a = amp(g, "3")
+    assert (a["pairs"][0]["f_seq"], a["pairs"][0]["r_seq"]) != (first["f_seq"], first["r_seq"]), \
+        "a pair whose primer amplifies on its own is ranked down"
+    demoted = next(b for b in a["pairs"] if b["f_seq"] == first["f_seq"] and b["r_seq"] == first["r_seq"]) \
+        if any(b["f_seq"] == first["f_seq"] for b in a["pairs"]) else None
+    assert demoted is None or demoted["rank"] > 1
+    assert "primer alone" not in " ".join(a["warnings"])      # the new best pair is clean
+    # with only the chr2 copy, the same pair stays best and OK, with a note
+    _, g = run("PLUSGENE", p)
+    first = amp(g, "3")["candidates"][0]
+    with tempfile.TemporaryDirectory() as td:
+        pad = "".join(random.Random(4).choice("ACGT") for _ in range(500))
+        write_2bit(Path(td) / "g.2bit", {"chr1": CHROM, "chr2": pad + first["f_seq"] + pad})
+        qpb.run_primer_hits([g], str(Path(td) / "g.2bit"), p, log=quiet)
+    qpb.finalize_gene(g, p)
+    a = amp(g, "3")
+    assert a["pairs"][0]["f_seq"] == first["f_seq"] and a["status"] == amp(run("PLUSGENE", p)[1], "3")["status"]
+    assert any("matches perfectly at 1 other site" in x and "chr2:501-" in x for x in a["notes"])
+    assert qpb.hits_text(a["pairs"][0]["hits"], "f").startswith("1: chr2:501-")
+    assert qpb.hits_text(a["pairs"][0]["hits"], "r") == "none" and qpb.products_text(a["pairs"][0]["hits"]) == "none"
+    assert qpb.hits_text(None, "f") == qpb.products_text(None) == "not checked"
+
+
+def test_single_primer_products_geometry():
+    sites = [("chr1", 100, 119, "+"), ("chr1", 400, 419, "-"), ("chr1", 9000, 9019, "-"),
+             ("chr1", 50, 69, "-"), ("chr2", 10, 29, "+")]
+    assert qpb.single_primer_products(sites, 4000) == [("chr1", 100, 419)]
+
+
+def test_primer_hit_scan_failure_is_not_fatal():
+    _, g = run("PLUSGENE")
+    assert qpb.run_primer_hits([g], "/nonexistent.2bit", qpb.Params(), log=quiet) is False
+    assert all("hits" not in b for a in g["amplicons"] for b in a["candidates"])
+
+
 # ---------------------------------------------------------------- rare variants
 def rare(pos, maf=1e-5, rs=None, end=None):
     return {"rs": rs or f"rs{pos}", "chrom": "chr1", "start": pos, "end": end or pos, "maf": maf}
@@ -679,6 +791,14 @@ def test_cli_end_to_end():
         assert all(p["f_rare"] == [] and p["r_rare"] == [] for a in j["amplicons"] for p in a["pairs"])
         assert [x["gene"] for x in meta["genes"]] == ["PLUSGENE", "MINUSGENE", "REG1"]
         assert sorted(e["gene"] for e in meta["errors"]) == ["NOTAGENE", "PLUSGENE"]  # name clash refused
+        # a genome alone (no isPcr) runs the perfect-match scan
+        write_2bit(Path(td) / "g.2bit", {"chr1": CHROM})
+        assert qpb.main([str(gl), "-o", f"{td}/h.xlsx", "--json-dir", f"{td}/h", "--cache", "",
+                         "--genome-2bit", str(Path(td) / "g.2bit")], ensembl=FakeEnsembl(), ucsc=FakeUCSC()) == 0
+        meta = json.loads(Path(f"{td}/h/index.json").read_text())
+        assert meta["primer_hits"] is True and meta["ispcr"] is False
+        j = json.loads(Path(f"{td}/h/genes/MINUSGENE.json").read_text())
+        assert all(p["hits"]["checked"] and p["hits"]["f_on_target"] for a in j["amplicons"] for p in a["pairs"])
         # regions alone are enough
         rc_ = qpb.main(["--regions", str(rg), "-o", f"{td}/r.xlsx", "--cache", ""],
                        ensembl=FakeEnsembl(), ucsc=FakeUCSC())

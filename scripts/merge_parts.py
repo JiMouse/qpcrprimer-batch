@@ -67,8 +67,8 @@ def merge_index(parts: list[Path]) -> dict:
             merged = {k: v for k, v in d.items() if k not in ("genes", "errors")}
         else:
             # One chunk without a specificity check makes the whole run unchecked;
-            # the same for the list of rare variants under the primers.
-            for k in ("ispcr", "rare_snps"):
+            # the same for the rare variants and the perfect-match scan.
+            for k in ("ispcr", "rare_snps", "primer_hits"):
                 if not d.get(k, False):
                     merged[k] = False
         genes += d.get("genes", [])

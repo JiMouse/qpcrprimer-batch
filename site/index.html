@@ -57,6 +57,7 @@ h1 span{color:var(--accent)}
 .snps a{color:inherit}
 .rare{display:block;font:400 11.5px "IBM Plex Sans",sans-serif;color:var(--muted);letter-spacing:0;margin-top:2px}
 .rare a{color:inherit}
+.hits{display:block;font:400 11.5px "IBM Plex Sans",sans-serif;color:var(--muted);letter-spacing:0;margin-top:2px}
 .legend{margin-top:10px;font-size:12px;color:var(--muted)}
 .opt{display:inline-flex;align-items:center;gap:5px;margin-left:10px;cursor:pointer;white-space:nowrap}
 .opt input{margin:0;accent-color:var(--exon)}
@@ -155,6 +156,7 @@ async function init(){
   <b>Safeguards.</b> Common SNPs (dbSNP 155, MAF ≥ ${p.snp_maf}) and repeats are masked before design: on genomic DNA a SNP under a primer can drop one allele and mimic a heterozygous deletion.
   Tiers: <i>clean</i> = no SNP and no repeat under the primers; <i>repeat-5p</i> = repeat only in a primer's 5′ part; <i>snp-5p</i> = SNP present but never in the last ${p.snp_3prime} bases.
   ${META.rare_snps ? `Rarer dbSNP 155 variants under a primer can be shown with <i>Show rare SNPs under primers</i> (distance from the 3′ end, highest frequency across dbSNP sources), for information only — they do not change the design or the status.` : ''}
+  ${META.primer_hits ? `Each primer was searched genome-wide for perfect matches: other sites are listed for information (a primer alone gives no exponential product), and a product made by one primer alone is flagged.` : ''}
   Targets in segmental duplications are flagged. ${META.ispcr ? 'Every candidate pair was checked genome-wide by in-silico PCR (isPcr); specific pairs are preferred.' : 'Genome-wide in-silico PCR was <b>not</b> run for this build — use the UCSC link.'}
   <b>OK</b> = clean tier, Primer Express settings, penalty under ${p.penalty_max}, no homology alert, a single in-silico PCR product; <b>Check</b> = read the listed warnings.<br>
   <b>Tm.</b> ${pe ? `Primer Express's formula, measured on its output: Breslauer 1986 nearest-neighbour with the Schildkraut salt term, ${p.salt_mono}&nbsp;mM&nbsp;Na⁺, ${p.dna_conc}&nbsp;nM oligo — the same numbers Primer Express shows.`
@@ -258,12 +260,12 @@ function renderAmp(gene, a){
   const ps = a.pairs, b = ps[0], name = a.name;
   const region = isRegion(gene);
   const what = region ? 'Custom region' : `Exon ${a.exons[0]} (${fmt(a.exon_len)} bp)`;
-  const alts = ps.slice(1).map(p=>`<tr><td>${p.rank}</td><td class="seq">${p.f_seq}${snpLine(p.f_snps,p.f_repeat)}${rareLine(p.f_rare)}</td><td class="seq">${p.r_seq}${snpLine(p.r_snps,p.r_repeat)}${rareLine(p.r_rare)}</td><td>${p.f_tm}/${p.r_tm}</td><td>${p.product}</td><td>${p.penalty}</td><td>${esc(p.placement)}</td><td>${esc(ispcrText(p.ispcr))}</td></tr>`).join('');
+  const alts = ps.slice(1).map(p=>`<tr><td>${p.rank}</td><td class="seq">${p.f_seq}${snpLine(p.f_snps,p.f_repeat)}${hitsLine(p.hits,'f')}${rareLine(p.f_rare)}</td><td class="seq">${p.r_seq}${snpLine(p.r_snps,p.r_repeat)}${hitsLine(p.hits,'r')}${rareLine(p.r_rare)}</td><td>${p.f_tm}/${p.r_tm}</td><td>${p.product}</td><td>${p.penalty}</td><td>${esc(p.placement)}</td><td>${esc(ispcrText(p.ispcr))}</td></tr>`).join('');
   const notes = a.notes || [];
   const P = META.params;
   const out = (v, lo, hi) => (v < lo || v > hi) ? 'hot' : '';   // only a relaxed pair can be outside
   const row = (dir, cls, seq, len, tm, tmu, gc, egc, snps, rep, label, rare) =>
-    `<tr><td><span class="tag ${cls}">${dir}</span></td><td>${esc(name)}${dir}</td><td class="seq">${seq}${snpLine(snps, rep)}${rareLine(rare)}</td><td>${len}</td><td class="${out(tm,P.tm_min,P.tm_max)}">${tm}</td><td class="muted">${tmu}</td><td class="${out(gc,P.gc_min,P.gc_max)}">${gc}</td><td class="${out(egc,0,P.max_end_gc)}">${egc}/5</td>
+    `<tr><td><span class="tag ${cls}">${dir}</span></td><td>${esc(name)}${dir}</td><td class="seq">${seq}${snpLine(snps, rep)}${hitsLine(b.hits, dir.toLowerCase())}${rareLine(rare)}</td><td>${len}</td><td class="${out(tm,P.tm_min,P.tm_max)}">${tm}</td><td class="muted">${tmu}</td><td class="${out(gc,P.gc_min,P.gc_max)}">${gc}</td><td class="${out(egc,0,P.max_end_gc)}">${egc}/5</td>
       <td><button class="btn copy" data-copy="${seq}" data-what="${label}">Copy</button></td></tr>`;
   return `<div class="panel amp">
     <h3>${esc(name)}${a.status==='OK'?'<span class="pill ok">OK</span>':'<span class="pill check">Check</span>'}</h3>
@@ -282,6 +284,7 @@ function renderAmp(gene, a){
       <div title="Primer Express penalty: 5 × (amplicon − 50) + |F length − 20| + |R length − 20|; lower is better" class="${b.penalty>=(P.penalty_max||100)?'hot':''}">Penalty<b>${b.penalty}</b></div>
       <div>Target covered<b>${b.target_cov}/${a.target_len} bp</b></div>
       <div>In-silico PCR<b>${esc(ispcrText(b.ispcr))}</b></div>
+      ${b.hits&&b.hits.checked?`<div title="Exact matches of each primer elsewhere in the genome (both strands, alt haplotypes ignored). A primer alone binding elsewhere gives no exponential product; one primer making a product on its own is a warning.">Perfect matches<b>${esc(hitsSummary(b.hits))}</b></div>`:''}
       <div class="wide">Position (${esc(META.assembly)})<b>chr${esc(b.chrom)}:${fmt(b.start)}-${fmt(b.end)}</b></div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
@@ -333,6 +336,18 @@ function rareLine(rare){
   if(!SHOW_RARE || !rare || !rare.length) return '';
   const parts = rare.map(x=>`<a target="_blank" rel="noopener" href="https://www.ncbi.nlm.nih.gov/snp/${esc(x.rs)}">${esc(x.rs)}</a> ${x.pos3} nt from 3′, ${freqText(x.maf)}`);
   return `<span class="rare" title="Rare dbSNP 155 variants under this primer (not common: information only, the status is unchanged). Frequency = highest across dbSNP sources.">Rare: ${parts.join(' · ')}</span>`;
+}
+// Exact genome-wide matches of a primer besides its own site (information)
+function hitsLine(h, side){
+  if(!h || !h.checked || !h[side+'_n']) return '';
+  const n = h[side+'_n'], shown = h[side+'_sites']||[], more = n - shown.length;
+  return `<span class="hits" title="Exact match of this primer elsewhere in the genome. Without its partner primer facing it nearby, it gives no exponential product (information).">Also a perfect match at ${n} other site${n>1?'s':''}: ${shown.map(esc).join(' · ')}${more>0?` · +${more} more`:''}</span>`;
+}
+function hitsSummary(h){
+  const p = (h.f_products||[]).length + (h.r_products||[]).length;
+  if(p) return `${p} single-primer product${p>1?'s':''}`;
+  if(!h.f_n && !h.r_n) return 'unique';
+  return `F +${h.f_n} · R +${h.r_n} sites`;
 }
 function ispcrText(ip){
   if(!ip || !ip.checked) return 'not run';

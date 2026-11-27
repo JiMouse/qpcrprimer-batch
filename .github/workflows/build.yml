@@ -212,6 +212,8 @@ jobs:
             web-${{ env.ASSEMBLY }}-${{ matrix.chunk }}-
             web-${{ env.ASSEMBLY }}-
 
+      # With the genome, the script also scans it for perfect matches of every
+      # primer (other sites listed; a product from one primer alone flagged).
       - name: Design primers
         run: |
           ISPCR_ARGS=""

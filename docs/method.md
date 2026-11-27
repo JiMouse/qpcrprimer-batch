@@ -119,6 +119,19 @@ variant seen once in a very small cohort; that is the number SNPCheck and dbSNP 
   3′ bases, products up to 4 kb). Specific pairs are moved first; off-target products are listed.
   Hits on alt/fix haplotype contigs are ignored. The GitHub workflow downloads isPcr and the
   genome automatically.
+- With `--genome-2bit`, every candidate primer is also searched genome-wide for **perfect
+  matches** (both strands, alt/fix contigs ignored) — what SNPCheck reports as a primer that
+  "aligns to other regions".
+  - **Other perfect sites are information** (a note, the assay stays OK). A primer bound alone
+    elsewhere is only copied linearly; it gives no exponential product unless a partner primer
+    faces it nearby, and the forward + reverse case is exactly what isPcr checks.
+  - **A product made by one primer alone** — two of its perfect sites facing each other within
+    4 kb (an inverted repeat) — is a real second product, which isPcr's forward + reverse search
+    does not look for: the pair is ranked down and, if it stays best, flagged **Check**.
+  - Example: `ABCC6_qE29F` also matches perfectly at chr18:73,447,803–73,447,821, with no
+    partner nearby — listed, OK.
+  - The scan is one vectorised pass over the `.2bit` (16-mer codes of the primers' 3′ ends, then
+    a base-by-base check), about 1–2 minutes per build job; `--no-primer-hits` skips it.
 
 ## Status
 

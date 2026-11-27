@@ -76,7 +76,7 @@ Genome-wide in-silico PCR and the GitHub workflow are in
 
 | Sheet | Content |
 |---|---|
-| Primers | One row per exon or region: status (OK / CHECK / FAIL), names (`GENE_qE3F/R`), sequences, length, Tm (Primer Express), Tm UCSC, GC, **3′ G/C**, ΔTm, **amplicon size and product Tm**, **Primer Express penalty**, placement (inside the exon or spanning), target bases covered, coordinates, design tier, common SNPs under F, under R and between the primers, rare SNPs under F and R (information), repeats, segmental duplication, in-silico PCR result, warnings, notes, UCSC link |
+| Primers | One row per exon or region: status (OK / CHECK / FAIL), names (`GENE_qE3F/R`), sequences, length, Tm (Primer Express), Tm UCSC, GC, **3′ G/C**, ΔTm, **amplicon size and product Tm**, **Primer Express penalty**, placement (inside the exon or spanning), target bases covered, coordinates, design tier, common SNPs under F, under R and between the primers, rare SNPs under F and R (information), repeats, segmental duplication, in-silico PCR result, perfect matches of each primer elsewhere and single-primer products, warnings, notes, UCSC link |
 | Alternatives | The best pair plus 2 alternatives per target, each with its penalty, SNPs and in-silico PCR result |
 | Amplicons | Amplicon sequences, exon UPPER / intron lower |
 | Genes | Transcript, RefSeq, targets, OK / to check / failed per gene or region |

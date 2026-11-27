@@ -24,6 +24,10 @@ included, so the fast paths are the ones under test). It checks:
 - SNPs: a SNP under the best pair moves the design to another pair; dense SNPs fall back to the
   `snp-5p` tier with no SNP in the last 5 bases and a Check status; `--strict` refuses instead; the
   MAF cut-off; a SNP between the primers is a note, not a warning;
+- perfect matches: the `.2bit` reader (N and mask blocks, alt contigs skipped) against a `.2bit`
+  written by the test; each primer's own site found on both strands; a copy elsewhere is a note
+  and the pair stays best and OK; a primer facing its own reverse complement 300 bp away is a
+  single-primer product that ranks the pair down; the product geometry; a failed scan not fatal;
 - rare variants: every dbSNP variant under a primer listed with the right distance from the 3′ end
   on both strands (an indel counted from its base nearest the 3′ end), a common SNP not listed
   twice, the design and the status unchanged; the batched bigBedToBed path (rows with or without a
