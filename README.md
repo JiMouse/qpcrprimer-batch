@@ -19,7 +19,7 @@ the Sanger primers; same gene list, same transcripts, same architecture.
 | 2. Extract the sequence | copy from a browser | Ensembl, soft-masked, batched and cached |
 | 3. Design | Primer Express | Primer3 reproducing Primer Express: its **rules**, its **Tm** and its **penalty**, measured on its output |
 | 4. Rank by penalty | penalty < 100 | **the same penalty**, 5 × (amplicon − 50) + \|F length − 20\| + \|R length − 20\|; a best pair at 100 or more is flagged |
-| 5. Check SNPs | dbSNP by eye | common SNPs (dbSNP 155, MAF ≥ 1 %) **masked before design**; any left under a primer is flagged |
+| 5. Check SNPs | dbSNP by eye, SNPCheck | common SNPs (dbSNP 155, MAF ≥ 1 %) **masked before design**; any left under a primer is flagged; every rarer dbSNP variant under a primer is **listed** (3′ distance, highest frequency) for information, without changing the status |
 | 6. Check uniqueness | UCSC In-Silico PCR | **isPcr genome-wide** on every candidate pair, plus segmental-duplication flags |
 
 ## Documentation
@@ -76,7 +76,7 @@ Genome-wide in-silico PCR and the GitHub workflow are in
 
 | Sheet | Content |
 |---|---|
-| Primers | One row per exon or region: status (OK / CHECK / FAIL), names (`GENE_qE3F/R`), sequences, length, Tm (Primer Express), Tm UCSC, GC, **3′ G/C**, ΔTm, **amplicon size and product Tm**, **Primer Express penalty**, placement (inside the exon or spanning), target bases covered, coordinates, design tier, SNPs under F, under R and between the primers, repeats, segmental duplication, in-silico PCR result, warnings, notes, UCSC link |
+| Primers | One row per exon or region: status (OK / CHECK / FAIL), names (`GENE_qE3F/R`), sequences, length, Tm (Primer Express), Tm UCSC, GC, **3′ G/C**, ΔTm, **amplicon size and product Tm**, **Primer Express penalty**, placement (inside the exon or spanning), target bases covered, coordinates, design tier, common SNPs under F, under R and between the primers, rare SNPs under F and R (information), repeats, segmental duplication, in-silico PCR result, perfect matches of each primer elsewhere and single-primer products, warnings, notes, UCSC link |
 | Alternatives | The best pair plus 2 alternatives per target, each with its penalty, SNPs and in-silico PCR result |
 | Amplicons | Amplicon sequences, exon UPPER / intron lower |
 | Genes | Transcript, RefSeq, targets, OK / to check / failed per gene or region |

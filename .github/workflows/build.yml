@@ -190,6 +190,17 @@ jobs:
           mkdir -p tools
           mv "$tmp/isPcr" "$tmp/${UCSC_DB}.2bit" tools/
 
+      # bigBedToBed lists every rare dbSNP variant under the primers in one read
+      # of UCSC's remote dbSnp155.bb per chunk (only the blocks the primers touch
+      # are downloaded). Optional: without it the design is identical and the
+      # rare variants are simply not listed.
+      - name: Download bigBedToBed
+        continue-on-error: true
+        run: |
+          mkdir -p kent
+          curl -fsSL -o kent/bigBedToBed https://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/bigBedToBed
+          chmod +x kent/bigBedToBed
+
       # Each chunk keeps its own web cache, restored from any earlier run of
       # the same chunk so only genuinely new genes hit Ensembl and UCSC.
       - name: Restore web cache (Ensembl / UCSC responses)
@@ -201,11 +212,17 @@ jobs:
             web-${{ env.ASSEMBLY }}-${{ matrix.chunk }}-
             web-${{ env.ASSEMBLY }}-
 
+      # With the genome, the script also scans it for perfect matches of every
+      # primer (other sites listed; a product from one primer alone flagged).
       - name: Design primers
         run: |
           ISPCR_ARGS=""
           if [ "$RUN_ISPCR" = "true" ] && [ -x tools/isPcr ]; then
             ISPCR_ARGS="--ispcr tools/isPcr --genome-2bit tools/${UCSC_DB}.2bit"
+          fi
+          RARE_ARGS="--no-rare-snps"
+          if [ -x kent/bigBedToBed ]; then
+            RARE_ARGS="--bigbedtobed kent/bigBedToBed --udc-dir .udc"
           fi
           mkdir -p "parts/${{ matrix.chunk }}"
           if [ "${{ matrix.chunk }}" = "regions" ]; then
@@ -217,7 +234,7 @@ jobs:
             --assembly "$ASSEMBLY" \
             -o "parts/${{ matrix.chunk }}/part.xlsx" \
             --json-dir "parts/${{ matrix.chunk }}/data" \
-            $ISPCR_ARGS ${{ inputs.extra_args }}
+            $ISPCR_ARGS $RARE_ARGS ${{ inputs.extra_args }}
 
       - uses: actions/upload-artifact@v7
         with:

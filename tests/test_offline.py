@@ -10,7 +10,8 @@ Checks
   * repeats are avoided, or tolerated only in the 5' part and reported;
   * segmental duplications are flagged;
   * an in-silico PCR off-target product demotes a pair;
-  * custom regions parse and design like a one-exon gene.
+  * custom regions parse and design like a one-exon gene;
+  * rare dbSNP variants under the primers are listed, never flagged.
 
 Run:  python tests/test_offline.py   (or python -m pytest tests/)
 """
@@ -68,8 +69,11 @@ class FakeEnsembl:
 
 
 class FakeUCSC:
-    def __init__(self, snps=(), repeats=(), segdups=()):
-        self._s, self._r, self._d = list(snps), list(repeats), list(segdups)
+    def __init__(self, snps=(), repeats=(), segdups=(), variants=()):
+        self._s, self._r, self._d, self._v = list(snps), list(repeats), list(segdups), list(variants)
+
+    def all_variants(self, chrom, start, end):
+        return [v for v in self._v if v["end"] >= start and v["start"] <= end]
 
     def snps(self, chrom, start, end, min_maf):
         return [s for s in self._s if s["end"] >= start and s["start"] <= end and (s["maf"] or 1) >= min_maf]
@@ -375,6 +379,230 @@ def test_snps_between_primers_are_noted_not_flagged():
     assert any("rs999" in n for n in a["notes"])
 
 
+# ---------------------------------------------------------------- perfect matches
+def write_2bit(path, seqs):
+    """A UCSC .2bit (version 0, little-endian) with N and soft-mask blocks."""
+    import re
+    import struct
+    code = {"T": 0, "C": 1, "A": 2, "G": 3}
+    names = list(seqs)
+    header = struct.pack("<IIII", 0x1A412743, 0, len(names), 0)
+    index_len = sum(1 + len(n) + 4 for n in names)
+    blobs, off = [], len(header) + index_len
+    index = b""
+    for n in names:
+        sq = seqs[n]
+        nb = [(m.start(), m.end() - m.start()) for m in re.finditer(r"[Nn]+", sq)]
+        mb = [(m.start(), m.end() - m.start()) for m in re.finditer(r"[a-z]+", sq)]
+        body = struct.pack("<II", len(sq), len(nb)) + b"".join(struct.pack("<I", x) for x, _ in nb) \
+            + b"".join(struct.pack("<I", y) for _, y in nb) + struct.pack("<I", len(mb)) \
+            + b"".join(struct.pack("<I", x) for x, _ in mb) + b"".join(struct.pack("<I", y) for _, y in mb) \
+            + struct.pack("<I", 0)
+        up = sq.upper().replace("N", "T") + "T" * (-len(sq) % 4)
+        body += bytes((code[up[i]] << 6) | (code[up[i + 1]] << 4) | (code[up[i + 2]] << 2) | code[up[i + 3]]
+                      for i in range(0, len(up), 4))
+        index += bytes([len(n)]) + n.encode() + struct.pack("<I", off)
+        blobs.append(body)
+        off += len(body)
+    Path(path).write_bytes(header + index + b"".join(blobs))
+
+
+def test_read_2bit():
+    with tempfile.TemporaryDirectory() as td:
+        seqs = {"chr1": CHROM, "chrS": "ACGTNNNNacgtA", "chr1_KI0001v1_alt": "ACGT"}
+        write_2bit(Path(td) / "g.2bit", seqs)
+        got = dict(qpb.read_2bit(str(Path(td) / "g.2bit"), skip=lambda n: not qpb.main_assembly_contig(n)))
+        assert got == {"chr1": CHROM.upper(), "chrS": "ACGTNNNNACGTA"}
+
+
+def hits_genome(td, b):
+    """chr2: an exact copy of F (another site, no product); chr3: F then its
+    reverse complement 300 bp later (F alone makes a product); an alt contig
+    copy of F, ignored."""
+    spacer = "".join(random.Random(3).choice("ACGT") for _ in range(300))
+    pad = "".join(random.Random(4).choice("ACGT") for _ in range(500))
+    seqs = {"chr1": CHROM, "chr2": pad + b["f_seq"] + pad,
+            "chr3": pad + b["f_seq"] + spacer + rc(b["f_seq"]) + pad,
+            "chr2_KI0001v1_alt": pad + b["f_seq"] + pad}
+    write_2bit(Path(td) / "g.2bit", seqs)
+    return str(Path(td) / "g.2bit")
+
+
+def test_primer_hits_on_both_strands():
+    p = qpb.Params()
+    for sym in GENES:
+        _, g = run(sym, p)
+        with tempfile.TemporaryDirectory() as td:
+            write_2bit(Path(td) / "g.2bit", {"chr1": CHROM})
+            assert qpb.run_primer_hits([g], str(Path(td) / "g.2bit"), p, log=quiet)
+        for a in g["amplicons"]:
+            for b in a["candidates"]:
+                h = b["hits"]
+                assert h["f_on_target"] and h["r_on_target"], (sym, a["label"])   # its own site, found
+                assert h["f_n"] == h["r_n"] == 0 and not h["f_products"] and not h["r_products"]
+
+
+def test_other_perfect_site_is_information_single_primer_product_is_flagged():
+    p = qpb.Params()
+    _, g = run("PLUSGENE", p)
+    a = amp(g, "3")
+    first = a["candidates"][0]
+    with tempfile.TemporaryDirectory() as td:
+        assert qpb.run_primer_hits([g], hits_genome(td, first), p, log=quiet)
+    h = first["hits"]
+    assert h["f_n"] == 3, h                                   # chr2, and chr3 twice; the alt copy ignored
+    assert any(x.startswith("chr2:501-") and x.endswith("(+)") for x in h["f_sites"])
+    assert any(x.endswith("(-)") for x in h["f_sites"])
+    n = len(first["f_seq"])
+    assert h["f_products"] == [f"chr3:501-{500 + 2 * n + 300} ({2 * n + 300} bp)"]
+    qpb.finalize_gene(g, p)
+    a = amp(g, "3")
+    assert (a["pairs"][0]["f_seq"], a["pairs"][0]["r_seq"]) != (first["f_seq"], first["r_seq"]), \
+        "a pair whose primer amplifies on its own is ranked down"
+    demoted = next(b for b in a["pairs"] if b["f_seq"] == first["f_seq"] and b["r_seq"] == first["r_seq"]) \
+        if any(b["f_seq"] == first["f_seq"] for b in a["pairs"]) else None
+    assert demoted is None or demoted["rank"] > 1
+    assert "primer alone" not in " ".join(a["warnings"])      # the new best pair is clean
+    # with only the chr2 copy, the same pair stays best and OK, with a note
+    _, g = run("PLUSGENE", p)
+    first = amp(g, "3")["candidates"][0]
+    with tempfile.TemporaryDirectory() as td:
+        pad = "".join(random.Random(4).choice("ACGT") for _ in range(500))
+        write_2bit(Path(td) / "g.2bit", {"chr1": CHROM, "chr2": pad + first["f_seq"] + pad})
+        qpb.run_primer_hits([g], str(Path(td) / "g.2bit"), p, log=quiet)
+    qpb.finalize_gene(g, p)
+    a = amp(g, "3")
+    assert a["pairs"][0]["f_seq"] == first["f_seq"] and a["status"] == amp(run("PLUSGENE", p)[1], "3")["status"]
+    assert any("matches perfectly at 1 other site" in x and "chr2:501-" in x for x in a["notes"])
+    assert qpb.hits_text(a["pairs"][0]["hits"], "f").startswith("1: chr2:501-")
+    assert qpb.hits_text(a["pairs"][0]["hits"], "r") == "none" and qpb.products_text(a["pairs"][0]["hits"]) == "none"
+    assert qpb.hits_text(None, "f") == qpb.products_text(None) == "not checked"
+
+
+def test_single_primer_products_geometry():
+    sites = [("chr1", 100, 119, "+"), ("chr1", 400, 419, "-"), ("chr1", 9000, 9019, "-"),
+             ("chr1", 50, 69, "-"), ("chr2", 10, 29, "+")]
+    assert qpb.single_primer_products(sites, 4000) == [("chr1", 100, 419)]
+
+
+def test_primer_hit_scan_failure_is_not_fatal():
+    _, g = run("PLUSGENE")
+    assert qpb.run_primer_hits([g], "/nonexistent.2bit", qpb.Params(), log=quiet) is False
+    assert all("hits" not in b for a in g["amplicons"] for b in a["candidates"])
+
+
+# ---------------------------------------------------------------- rare variants
+def rare(pos, maf=1e-5, rs=None, end=None):
+    return {"rs": rs or f"rs{pos}", "chrom": "chr1", "start": pos, "end": end or pos, "maf": maf}
+
+
+def test_primer_spans_follow_the_strand():
+    for sym in GENES:
+        m, g = run(sym)
+        for a in g["amplicons"]:
+            b = a["pairs"][0]
+            sp = qpb.primer_spans(g["strand"], b)
+            f_lo, f_hi, f3 = sp["f"]
+            r_lo, r_hi, r3 = sp["r"]
+            f, r = genomic(f_lo, f_hi), genomic(r_lo, r_hi)
+            assert (f if m.strand == 1 else rc(f)) == b["f_seq"], sym
+            assert (rc(r) if m.strand == 1 else r) == b["r_seq"], sym
+            # the 3' base of each primer, read on the genome
+            assert genomic(f3, f3) == (b["f_seq"][-1] if m.strand == 1 else rc(b["f_seq"][-1]))
+            assert genomic(r3, r3) == (rc(b["r_seq"][-1]) if m.strand == 1 else b["r_seq"][-1])
+
+
+def test_rare_variants_are_listed_not_flagged():
+    for sym in GENES:
+        _, g0 = run(sym)
+        b0 = amp(g0, "3")["pairs"][0]
+        sp = qpb.primer_spans(g0["strand"], b0)
+        f3, r3 = sp["f"][2], sp["r"][2]
+        step = -1 if g0["strand"] == 1 else 1          # away from the F 3' end, into the primer
+        vs = [rare(f3, 8.6e-6, "rsF1"),                 # terminal base of F
+              rare(f3 + 7 * step, None, "rsF8"),        # 8 nt from the 3' end, no frequency data
+              rare(r3 - 3 * step, 2.6e-4, "rsR4"),      # 4 nt from the R 3' end
+              rare((b0["start"] + b0["end"]) // 2, 1e-4, "rsMID")]   # between the primers: not listed
+        _, g = run(sym)
+        assert qpb.annotate_rare([g], qpb.api_fetcher(FakeUCSC(variants=vs), quiet), quiet)
+        qpb.finalize_gene(g, qpb.Params())
+        a = amp(g, "3")
+        b = a["pairs"][0]
+        assert (b["f_seq"], b["r_seq"]) == (b0["f_seq"], b0["r_seq"]), "rare variants never move the design"
+        assert a["status"] == amp(g0, "3")["status"] and a["warnings"] == amp(g0, "3")["warnings"]
+        assert b["f_rare"] == [{"rs": "rsF1", "maf": 8.6e-6, "pos3": 1}, {"rs": "rsF8", "maf": None, "pos3": 8}], sym
+        assert b["r_rare"] == [{"rs": "rsR4", "maf": 2.6e-4, "pos3": 4}], sym
+        assert g["annotated"]["rare_snps"] is True
+        assert qpb.rare_text(b["f_rare"]) == "rsF1 (1 nt from 3', max 0.00086 %); rsF8 (8 nt from 3', no frequency data)"
+        assert qpb.rare_text([]) == "" and qpb.rare_text(None) == "not checked"
+
+
+def test_common_snp_is_not_listed_again_as_rare():
+    _, g = check_gene("PLUSGENE", ucsc=dense_snps())
+    a = amp(g, "2")
+    b = a["candidates"][0]
+    s = b["f_snps"][0]
+    sp = qpb.primer_spans(1, b)
+    pos = sp["f"][2] - (s["pos3"] - 1)
+    qpb.annotate_rare([g], lambda ws: {w: [rare(pos, 0.05, s["rs"])] for w in ws}, quiet)
+    assert all(v["rs"] != s["rs"] for v in b["f_rare"])
+
+
+def test_an_indel_counts_from_its_base_nearest_the_3prime_end():
+    assert qpb.variants_under((100, 119, 119), [rare(110, end=125, rs="rsDEL")], set()) == \
+        [{"rs": "rsDEL", "maf": 1e-5, "pos3": 1}]
+    assert qpb.variants_under((100, 119, 100), [rare(95, end=104, rs="rsDEL")], set())[0]["pos3"] == 1
+    assert qpb.variants_under((100, 119, 100), [rare(130)], set()) == []
+
+
+def test_bigbed_rows_parse_with_or_without_header():
+    row = "chr16\t16154653\t16154654\trs63750798\tC\t3\tA,G,T,\t0\t3\t-inf,0,8.60052e-06,\tC,C,C,\tA,A,A,\t0\tsnv\tclinvar,\t1\t2"
+    v = qpb.parse_bigbed_variants([row])
+    assert v == [{"rs": "rs63750798", "chrom": "chr16", "start": 16154654, "end": 16154654, "maf": 8.6e-06}]
+    hdr = "#" + "\t".join(qpb.BIGDBSNP_COLS)
+    assert qpb.parse_bigbed_variants([hdr, row]) == v
+    ins = "chr1\t99\t99\trsINS\t\t1\tA,\t0\t0\t\t\t\t0\tins\t\t1\t2"
+    assert qpb.parse_bigbed_variants([ins])[0]["start"] == 100
+
+
+def test_assign_to_windows():
+    vs = [rare(10), rare(50, end=70, rs="rsLONG"), rare(200), dict(rare(60), chrom="chr2")]
+    out = qpb.assign_to_windows(vs, [("chr1", 65, 80), ("chr1", 1, 5), ("chr3", 1, 9)])
+    assert [v["rs"] for v in out[("chr1", 65, 80)]] == ["rsLONG"]
+    assert out[("chr1", 1, 5)] == [] and out[("chr3", 1, 9)] == []
+    assert qpb.merge_windows([("chr1", 10, 20), ("chr1", 15, 30), ("chr1", 40, 50), ("chr2", 1, 2)]) == \
+        [("chr1", 10, 30), ("chr1", 40, 50), ("chr2", 1, 2)]
+
+
+def fake_bigbedtobed(td, rows):
+    fake = Path(td) / "bigBedToBed"
+    fake.write_text(f"""#!{sys.executable}
+import sys
+args = [a for a in sys.argv[1:] if not a.startswith("-")]
+regions = [a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("-bed=")][0]
+assert open(regions).read().strip(), "windows are passed"
+open(args[-1], "w").write({"".join(r + chr(10) for r in rows)!r})
+""")
+    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    return str(fake)
+
+
+def test_bigbed_path_and_failure():
+    _, g = run("PLUSGENE")
+    b = amp(g, "3")["candidates"][0]
+    f3 = qpb.primer_spans(1, b)["f"][2]
+    row = f"chr1\t{f3 - 2}\t{f3 - 1}\trsBB\tA\t1\tG,\t0\t1\t0.0002,\tA,\tG,\t0\tsnv\t\t1\t2"
+    with tempfile.TemporaryDirectory() as td:
+        assert qpb.annotate_rare([g], qpb.bigbed_fetcher(fake_bigbedtobed(td, [row]), "x.bb", log=quiet), quiet)
+    assert b["f_rare"] == [{"rs": "rsBB", "maf": 0.0002, "pos3": 2}]
+    _, g = run("PLUSGENE")
+    assert not qpb.annotate_rare([g], qpb.bigbed_fetcher("/nonexistent/bigBedToBed", "x.bb", log=quiet), quiet)
+    qpb.finalize_gene(g, qpb.Params())
+    a = amp(g, "3")
+    assert g["annotated"]["rare_snps"] is False and "f_rare" not in a["pairs"][0]
+    assert a["status"] == "OK" and any("not listed" in n for n in a["notes"])
+
+
 # ---------------------------------------------------------------- repeats
 def test_repeat_under_best_primer_is_avoided():
     _, g0 = run("PLUSGENE")
@@ -558,8 +786,19 @@ def test_cli_end_to_end():
                        ensembl=FakeEnsembl(), ucsc=FakeUCSC())
         assert rc_ == 0 and Path(f"{td}/site/x.xlsx").exists()
         meta = json.loads(Path(f"{td}/site/data/index.json").read_text())
+        assert meta["rare_snps"] is True
+        j = json.loads(Path(f"{td}/site/data/genes/PLUSGENE.json").read_text())
+        assert all(p["f_rare"] == [] and p["r_rare"] == [] for a in j["amplicons"] for p in a["pairs"])
         assert [x["gene"] for x in meta["genes"]] == ["PLUSGENE", "MINUSGENE", "REG1"]
         assert sorted(e["gene"] for e in meta["errors"]) == ["NOTAGENE", "PLUSGENE"]  # name clash refused
+        # a genome alone (no isPcr) runs the perfect-match scan
+        write_2bit(Path(td) / "g.2bit", {"chr1": CHROM})
+        assert qpb.main([str(gl), "-o", f"{td}/h.xlsx", "--json-dir", f"{td}/h", "--cache", "",
+                         "--genome-2bit", str(Path(td) / "g.2bit")], ensembl=FakeEnsembl(), ucsc=FakeUCSC()) == 0
+        meta = json.loads(Path(f"{td}/h/index.json").read_text())
+        assert meta["primer_hits"] is True and meta["ispcr"] is False
+        j = json.loads(Path(f"{td}/h/genes/MINUSGENE.json").read_text())
+        assert all(p["hits"]["checked"] and p["hits"]["f_on_target"] for a in j["amplicons"] for p in a["pairs"])
         # regions alone are enough
         rc_ = qpb.main(["--regions", str(rg), "-o", f"{td}/r.xlsx", "--cache", ""],
                        ensembl=FakeEnsembl(), ucsc=FakeUCSC())

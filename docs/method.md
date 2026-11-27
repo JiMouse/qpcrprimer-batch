@@ -95,6 +95,20 @@ intron is preferred to an exonic pair with a SNP under it. `--strict` keeps only
 SNPs **between** the primers are listed as a note, not a warning: they do not affect
 amplification, only — slightly — the melt curve.
 
+**Rare variants under primers — listed, never avoided.** Every other variant of UCSC `dbSnp155`
+(all of dbSNP 155, not only the common set) that lies under a primer of the finished design is
+listed with its distance from the primer's 3′ end and its **highest frequency across dbSNP
+sources** (gnomAD, TOPMed, 1000 Genomes, ALSPAC…; "no frequency data" when no source reports one).
+With gnomAD-scale data almost every exonic base carries some variant — 58 in the 141 bp around
+ABCC6 exon 29 — mostly at 1 in 10,000 to 1 in 1,000,000, so these never change the design, the
+ranking or the status: an assay with only rare variants under its primers stays **OK**. They are
+there so that, for a patient whose own variant is known, you can see at once whether it falls under
+a primer. On the website they are hidden until **Show rare SNPs under primers** is ticked (the
+choice is remembered in the browser); the Excel workbook always has them, in two `(info)` columns. In the build they are read in one batch from UCSC's `dbSnp155.bb` with `bigBedToBed`
+(`--bigbedtobed`); without it, one UCSC API request per target (fine for a few genes).
+`--no-rare-snps` turns the listing off. The highest frequency over all sources can be high for a
+variant seen once in a very small cohort; that is the number SNPCheck and dbSNP show too.
+
 **3. High homology.**
 - Targets overlapping a segmental duplication (UCSC `genomicSuperDups`, ≥ 90 % identity, ≥ 1 kb)
   are flagged with the identity and the duplicated locus. For copy-number work this is the case
@@ -105,6 +119,19 @@ amplification, only — slightly — the melt curve.
   3′ bases, products up to 4 kb). Specific pairs are moved first; off-target products are listed.
   Hits on alt/fix haplotype contigs are ignored. The GitHub workflow downloads isPcr and the
   genome automatically.
+- With `--genome-2bit`, every candidate primer is also searched genome-wide for **perfect
+  matches** (both strands, alt/fix contigs ignored) — what SNPCheck reports as a primer that
+  "aligns to other regions".
+  - **Other perfect sites are information** (a note, the assay stays OK). A primer bound alone
+    elsewhere is only copied linearly; it gives no exponential product unless a partner primer
+    faces it nearby, and the forward + reverse case is exactly what isPcr checks.
+  - **A product made by one primer alone** — two of its perfect sites facing each other within
+    4 kb (an inverted repeat) — is a real second product, which isPcr's forward + reverse search
+    does not look for: the pair is ranked down and, if it stays best, flagged **Check**.
+  - Example: `ABCC6_qE29F` also matches perfectly at chr18:73,447,803–73,447,821, with no
+    partner nearby — listed, OK.
+  - The scan is one vectorised pass over the `.2bit` (16-mer codes of the primers' 3′ ends, then
+    a base-by-base check), about 1–2 minutes per build job; `--no-primer-hits` skips it.
 
 ## Status
 
