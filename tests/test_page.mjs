@@ -139,6 +139,11 @@ ok(!has('undefined') && !has('NaN'), 'no undefined or NaN in the exon view');
 
 // rare dbSNP variants: listed under the primer, the amplicon stays OK
 await go('PLUSG/2');
+ok(has('id="showRare"') && !has('id="showRare" checked'), 'the rare-SNP box is offered, unticked by default');
+ok(!has('class="rare"') && !has(' rv"'), 'rare SNPs are hidden until the box is ticked');
+els['showRare'].onchange({target:{checked:true}});
+await go('PLUSG/2');
+ok(has('id="showRare" checked'), 'the box stays ticked');
 ok(has('pill ok') && !has('class="warns"'), 'rare variants leave the amplicon OK, with no warning');
 ok(has('class="rare"') && has('rs63750798') && has('8 nt from 3′, max 0.00086 %'),
    'a rare variant is listed with its distance from the 3′ end and its highest frequency');
@@ -146,6 +151,9 @@ ok(has('rs777') && has('no frequency data'), 'a variant without frequency data s
 ok(has('<span class="pf rv">'), 'rare variants are dashed in the amplicon view');
 ok(!has('undefined') && !has('NaN'), 'no undefined or NaN with rare variants');
 ok(els['note'].innerHTML.includes('information only'), 'the method note says rare variants are information only');
+els['showRare'].onchange({target:{checked:false}});
+await go('PLUSG/2');
+ok(!has('class="rare"'), 'unticking hides them again');
 
 await go('PLUSG/3');
 ok(has('pill check'), 'a Check amplicon carries the Check pill');

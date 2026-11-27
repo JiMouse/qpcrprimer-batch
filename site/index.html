@@ -58,6 +58,8 @@ h1 span{color:var(--accent)}
 .rare{display:block;font:400 11.5px "IBM Plex Sans",sans-serif;color:var(--muted);letter-spacing:0;margin-top:2px}
 .rare a{color:inherit}
 .legend{margin-top:10px;font-size:12px;color:var(--muted)}
+.opt{display:inline-flex;align-items:center;gap:5px;margin-left:10px;cursor:pointer;white-space:nowrap}
+.opt input{margin:0;accent-color:var(--exon)}
 .amp h3{margin:0 0 4px;font-size:17px;font-weight:600}
 .amp .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
 table{width:100%;border-collapse:collapse;font-size:14px}
@@ -115,6 +117,14 @@ pre.amplicon .rv{outline:1px dashed var(--muted);outline-offset:-1px;border-radi
 const $ = s => document.querySelector(s);
 let META = null, GENE = null;
 const cache = {};
+// Rare dbSNP variants under the primers: hidden unless the user ticks the box
+// (remembered in this browser only).
+let SHOW_RARE = false;
+try { SHOW_RARE = localStorage.getItem('qpcr.showRare') === '1'; } catch(e) {}
+function rareToggle(){
+  if(!META || !META.rare_snps) return '';
+  return `<label class="opt" title="List every rarer dbSNP 155 variant under each primer: distance from the 3′ end and highest frequency across dbSNP sources. Information only — the status does not change."><input type="checkbox" id="showRare"${SHOW_RARE?' checked':''}> Show rare SNPs under primers</label>`;
+}
 const START_HTML = '<div class="panel empty">Choose a gene to see a qPCR primer pair for each of its coding exons,<br>or paste a region (for example a CNV call) to list the assays inside it.</div>';
 
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),1400); }
@@ -144,7 +154,7 @@ async function init(){
   Hairpins and primer-dimers are refused as in Primer3 (structure Tm above 47 °C, in a PCR buffer).<br>
   <b>Safeguards.</b> Common SNPs (dbSNP 155, MAF ≥ ${p.snp_maf}) and repeats are masked before design: on genomic DNA a SNP under a primer can drop one allele and mimic a heterozygous deletion.
   Tiers: <i>clean</i> = no SNP and no repeat under the primers; <i>repeat-5p</i> = repeat only in a primer's 5′ part; <i>snp-5p</i> = SNP present but never in the last ${p.snp_3prime} bases.
-  ${META.rare_snps ? `Rarer dbSNP 155 variants under a primer are listed below its sequence (distance from the 3′ end, highest frequency across dbSNP sources) for information only — they do not change the design or the status.` : ''}
+  ${META.rare_snps ? `Rarer dbSNP 155 variants under a primer can be shown with <i>Show rare SNPs under primers</i> (distance from the 3′ end, highest frequency across dbSNP sources), for information only — they do not change the design or the status.` : ''}
   Targets in segmental duplications are flagged. ${META.ispcr ? 'Every candidate pair was checked genome-wide by in-silico PCR (isPcr); specific pairs are preferred.' : 'Genome-wide in-silico PCR was <b>not</b> run for this build — use the UCSC link.'}
   <b>OK</b> = clean tier, Primer Express settings, penalty under ${p.penalty_max}, no homology alert, a single in-silico PCR product; <b>Check</b> = read the listed warnings.<br>
   <b>Tm.</b> ${pe ? `Primer Express's formula, measured on its output: Breslauer 1986 nearest-neighbour with the Schildkraut salt term, ${p.salt_mono}&nbsp;mM&nbsp;Na⁺, ${p.dna_conc}&nbsp;nM oligo — the same numbers Primer Express shows.`
@@ -198,7 +208,7 @@ function renderGene(gene, exNum){
         <span class="kv">custom region <b>chr${esc(gene.chrom)}:${fmt(r.start)}-${fmt(r.end)}</b></span>
         <span class="kv"><b>${fmt(r.len)}</b> bp</span></div>
         <div class="legend"><button class="btn copy" id="copyGene">Copy primers (TSV)</button>
-        <button class="btn copy" id="copyOrder">Copy order rows</button></div></div>`
+        <button class="btn copy" id="copyOrder">Copy order rows</button>${rareToggle()}</div></div>`
     : `<div class="panel">
     <div class="gene-head">
       <h2>${esc(gene.gene)}</h2>
@@ -210,7 +220,7 @@ function renderGene(gene, exNum){
     <div class="exmap">${chips}</div>
     <div class="legend">Coding exons: <span class="pill ok">OK</span><span class="pill check">Check</span><span class="pill fail">No primers</span> · grey = non-coding.
       <button class="btn copy" id="copyGene" style="margin-left:8px">Copy all ${esc(gene.gene)} primers (TSV)</button>
-      <button class="btn copy" id="copyOrder">Copy all order rows</button></div>
+      <button class="btn copy" id="copyOrder">Copy all order rows</button>${rareToggle()}</div>
   </div>`;
   const amps = exNum!=null ? ampsFor(gene, exNum) : [];
   const fails = exNum!=null ? failsFor(gene, exNum) : [];
@@ -226,6 +236,11 @@ function wireButtons(gene){
   document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copy(b.dataset.copy, b.dataset.what));
   if(gene && $('#copyGene')) $('#copyGene').onclick = ()=>copy(geneTSV(gene), `${gene.gene} primers`);
   if(gene && $('#copyOrder')) $('#copyOrder').onclick = ()=>copy(geneOrder(gene), `${gene.gene} order rows`);
+  if($('#showRare')) $('#showRare').onchange = e=>{
+    SHOW_RARE = !!e.target.checked;
+    try { localStorage.setItem('qpcr.showRare', SHOW_RARE ? '1' : '0'); } catch(err) {}
+    route();
+  };
 }
 
 function ucscUrl(f,r){
@@ -277,7 +292,7 @@ function renderAmp(gene, a){
       <button class="btn" data-copy="${esc(orderPair(gene,a,b))}" data-what="Order rows"
         title="Two lines for the synthesis order sheet: name, sequence, length, empty PCR-control cell, ${esc(ORDER_SCALE)}, ${esc(ORDER_PURIF)}, ${esc(ORDER_FORMAT)}">Copy order rows</button>
     </div>
-    <details><summary>Amplicon sequence (exon in colour, intron lower case, primers highlighted, common SNPs boxed, rare ones dashed)</summary>${ampView(b)}</details>
+    <details><summary>Amplicon sequence (exon in colour, intron lower case, primers highlighted, SNPs boxed${SHOW_RARE?', rare ones dashed':''})</summary>${ampView(b)}</details>
     ${alts?`<details><summary>${ps.length-1} alternative pair${ps.length>2?'s':''}</summary>
       <div class="table-scroll"><table class="alt"><tr><th>#</th><th>Forward</th><th>Reverse</th><th>Tm F/R</th><th>Amplicon</th><th>Penalty</th><th>Placement</th><th>In-silico PCR</th></tr>${alts}</table></div></details>`:''}
   </div>`;
@@ -288,8 +303,8 @@ function ampView(b){
   (b.f_snps||[]).forEach(x=>snpIdx.add(b.f_len - x.pos3));
   (b.r_snps||[]).forEach(x=>snpIdx.add(L - b.r_len + x.pos3 - 1));
   const rareIdx = new Set();
-  (b.f_rare||[]).forEach(x=>rareIdx.add(b.f_len - x.pos3));
-  (b.r_rare||[]).forEach(x=>rareIdx.add(L - b.r_len + x.pos3 - 1));
+  if(SHOW_RARE) (b.f_rare||[]).forEach(x=>rareIdx.add(b.f_len - x.pos3));
+  if(SHOW_RARE) (b.r_rare||[]).forEach(x=>rareIdx.add(L - b.r_len + x.pos3 - 1));
   let out = '';
   for(let i=0;i<L;i+=W){
     out += `<span class="n">${String(i+1).padStart(4,' ')}  </span>`;
@@ -315,7 +330,7 @@ function freqText(maf){
   return `max ${Number((maf*100).toPrecision(2)).toLocaleString('en-US',{maximumSignificantDigits:2, maximumFractionDigits:8})} %`;
 }
 function rareLine(rare){
-  if(!rare || !rare.length) return '';
+  if(!SHOW_RARE || !rare || !rare.length) return '';
   const parts = rare.map(x=>`<a target="_blank" rel="noopener" href="https://www.ncbi.nlm.nih.gov/snp/${esc(x.rs)}">${esc(x.rs)}</a> ${x.pos3} nt from 3′, ${freqText(x.maf)}`);
   return `<span class="rare" title="Rare dbSNP 155 variants under this primer (not common: information only, the status is unchanged). Frequency = highest across dbSNP sources.">Rare: ${parts.join(' · ')}</span>`;
 }
