@@ -555,16 +555,6 @@ def test_an_indel_counts_from_its_base_nearest_the_3prime_end():
     assert qpb.variants_under((100, 119, 100), [rare(130)], set()) == []
 
 
-def test_bigbed_rows_parse_with_or_without_header():
-    row = "chr16\t16154653\t16154654\trs63750798\tC\t3\tA,G,T,\t0\t3\t-inf,0,8.60052e-06,\tC,C,C,\tA,A,A,\t0\tsnv\tclinvar,\t1\t2"
-    v = qpb.parse_bigbed_variants([row])
-    assert v == [{"rs": "rs63750798", "chrom": "chr16", "start": 16154654, "end": 16154654, "maf": 8.6e-06}]
-    hdr = "#" + "\t".join(qpb.BIGDBSNP_COLS)
-    assert qpb.parse_bigbed_variants([hdr, row]) == v
-    ins = "chr1\t99\t99\trsINS\t\t1\tA,\t0\t0\t\t\t\t0\tins\t\t1\t2"
-    assert qpb.parse_bigbed_variants([ins])[0]["start"] == 100
-
-
 def test_assign_to_windows():
     vs = [rare(10), rare(50, end=70, rs="rsLONG"), rare(200), dict(rare(60), chrom="chr2")]
     out = qpb.assign_to_windows(vs, [("chr1", 65, 80), ("chr1", 1, 5), ("chr3", 1, 9)])
@@ -574,29 +564,150 @@ def test_assign_to_windows():
         [("chr1", 10, 30), ("chr1", 40, 50), ("chr2", 1, 2)]
 
 
-def fake_bigbedtobed(td, rows):
-    fake = Path(td) / "bigBedToBed"
-    fake.write_text(f"""#!{sys.executable}
-import sys
-args = [a for a in sys.argv[1:] if not a.startswith("-")]
-regions = [a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("-bed=")][0]
-assert open(regions).read().strip(), "windows are passed"
-open(args[-1], "w").write({"".join(r + chr(10) for r in rows)!r})
-""")
-    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
-    return str(fake)
+def write_bigbed(path, rows, per_block=3, per_leaf=2, compress=True):
+    """A real bigBed (version 4, no zoom levels): chromosome B+ tree, a
+    two-level R-tree (root -> leaves -> data blocks), zlib blocks. rows:
+    (chrom, start0, end0, "rest\tof\tfields"), sorted."""
+    import struct
+    import zlib
+    chroms = sorted({r[0] for r in rows})
+    cid = {c: i for i, c in enumerate(chroms)}
+    rows = sorted(rows, key=lambda r: (cid[r[0]], r[1], r[2]))
+    ksize = max(len(c) for c in chroms)
+    tree = struct.pack("<IIIIQQ", 0x78CA8C91, len(chroms), ksize, 8, len(chroms), 0) \
+        + struct.pack("<BBH", 1, 0, len(chroms)) \
+        + b"".join(c.encode().ljust(ksize, b"\0") + struct.pack("<II", cid[c], 10 ** 6) for c in chroms)
+    chrom_tree, data_off = 64, 64 + len(tree)
+    data, blocks = b"", []
+    for k in range(0, len(rows), per_block):
+        chunk = rows[k:k + per_block]
+        raw = b"".join(struct.pack("<III", cid[c], st, en) + rest.encode() + b"\0" for c, st, en, rest in chunk)
+        blob = zlib.compress(raw) if compress else raw
+        blocks.append((cid[chunk[0][0]], chunk[0][1], cid[chunk[-1][0]], max(r[2] for r in chunk),
+                       data_off + len(data), len(blob)))
+        data += blob
+    index_off = data_off + len(data)
+    leaves = [blocks[k:k + per_leaf] for k in range(0, len(blocks), per_leaf)]
+    rblock = max(per_leaf, len(leaves))
+    root_size = 4 + 24 * len(leaves)
+    leaf_off, leaf_nodes, o = [], [], index_off + 48 + root_size
+    for lf in leaves:
+        node = struct.pack("<BBH", 1, 0, len(lf)) + b"".join(struct.pack("<IIIIQQ", *x) for x in lf)
+        leaf_off.append(o)
+        leaf_nodes.append(node)
+        o += len(node)
+    root = struct.pack("<BBH", 0, 0, len(leaves)) + b"".join(
+        struct.pack("<IIIIQ", lf[0][0], lf[0][1], lf[-1][2], max(x[3] for x in lf), off)
+        for lf, off in zip(leaves, leaf_off))
+    rhead = struct.pack("<IIQIIIIQII", 0x2468ACE0, rblock, len(blocks), blocks[0][0], blocks[0][1],
+                        blocks[-1][2], blocks[-1][3], index_off, 1, 0)
+    hdr = struct.pack("<IHHQQQHHQQIQ", 0x8789F2EB, 4, 0, chrom_tree, data_off, index_off, 17, 3, 0, 0,
+                      65536 if compress else 0, 0)
+    Path(path).write_bytes(hdr + tree + data + rhead + root + b"".join(leaf_nodes))
 
 
-def test_bigbed_path_and_failure():
+def dbsnp_rows():
+    """bigDbSnp rows: rs<pos> SNVs every 7 bp on chr1 and chr2, an insertion, a long deletion."""
+    tail = "\t0\t1\t{maf},\tA,\tG,\t0\tsnv\t\t1\t2"
+    rows = [(c, x, x + 1, f"rs{c[-1]}_{x + 1}\tA\t1\tG," + tail.format(maf=1e-5 * (1 + x % 5)))
+            for c in ("chr1", "chr2") for x in range(1000, 1400, 7)]
+    rows.append(("chr1", 1200, 1200, "rsINS\t\t1\tA,\t0\t1\t3e-06,\t-,\tA,\t0\tins\t\t1\t2"))
+    rows.append(("chr1", 1290, 1330, "rsDEL40\tA\t1\t-,\t0\t0\t\t\t\t0\tdel\t\t1\t2"))
+    return rows
+
+
+def expected(rows, windows):
+    out = set()
+    for c, s0, e0, rest in rows:
+        v = qpb.variant_record({"chrom": c, "chromStart": s0, "chromEnd": e0,
+                                **dict(zip(qpb.BIGDBSNP_COLS[3:], rest.split("\t")))})
+        if any(c == wc and v["start"] <= we and v["end"] >= ws for wc, ws, we in windows):
+            out.add((v["rs"], v["start"], v["maf"]))
+    return out
+
+
+def test_bigbed_reader_local():
+    rows = dbsnp_rows()
+    windows = [("chr1", 1050, 1060), ("chr1", 1199, 1215), ("chr1", 1320, 1322), ("chr2", 1390, 1500),
+               ("chr9", 1, 100)]
+    for compress in (True, False):
+        with tempfile.TemporaryDirectory() as td:
+            write_bigbed(Path(td) / "d.bb", rows, compress=compress)
+            got = qpb.bigbed_variants(str(Path(td) / "d.bb"), windows, log=quiet)
+        vs = {(v["rs"], v["start"], v["maf"]) for v in qpb.assign_to_windows(got, windows)[("chr1", 1199, 1215)]}
+        assert {x[0] for x in vs} == {"rsINS", "rs1_1204", "rs1_1211"}
+        allv = {(v["rs"], v["start"], v["maf"]) for w in windows for v in qpb.assign_to_windows(got, windows)[w]}
+        assert allv == expected(rows, windows), compress
+        assert "rsDEL40" in {x[0] for x in allv}          # a deletion reaching into a window from before it
+    assert qpb.bigbed_variants("/nonexistent.bb", windows, log=quiet) is None
+
+
+def range_server(path, fail_every=0):
+    """HTTP server with byte ranges; every fail_every-th request is dropped."""
+    import http.server
+    import threading
+    data = Path(path).read_bytes()
+    count = {"n": 0}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            count["n"] += 1
+            if fail_every and count["n"] % fail_every == 0:
+                self.send_response(503)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            a, b = self.headers["Range"].split("=")[1].split("-")
+            body = data[int(a):int(b) + 1]
+            self.send_response(206)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, count
+
+
+def test_bigbed_reader_over_http_with_retries():
+    rows = dbsnp_rows()
+    windows = [("chr1", 1000 + 20 * k, 1005 + 20 * k) for k in range(18)] + [("chr2", 1100, 1180)]
+    with tempfile.TemporaryDirectory() as td:
+        write_bigbed(Path(td) / "d.bb", rows)
+        srv, count = range_server(Path(td) / "d.bb", fail_every=3)
+        try:
+            url = f"http://127.0.0.1:{srv.server_address[1]}/d.bb"
+            reader = qpb.RangeReader(url, pause=0.01, log=quiet)
+            got = qpb.bigbed_variants(url, windows, log=quiet, reader=reader)
+            # header, chrom tree (2), R-tree root, leaves, blocks: nearby reads merged into few requests
+            assert reader.requests <= 8, reader.requests
+            allv = {(v["rs"], v["start"], v["maf"]) for w in windows for v in qpb.assign_to_windows(got, windows)[w]}
+            assert allv == expected(rows, windows)
+            # every request failing: reported, not fatal
+            srv2, _ = range_server(Path(td) / "d.bb", fail_every=1)
+            url2 = f"http://127.0.0.1:{srv2.server_address[1]}/d.bb"
+            assert qpb.bigbed_variants(url2, windows, log=quiet,
+                                       reader=qpb.RangeReader(url2, tries=2, pause=0.01, log=quiet)) is None
+            srv2.shutdown()
+        finally:
+            srv.shutdown()
+
+
+def test_bigbed_path_end_to_end_and_failure():
     _, g = run("PLUSGENE")
     b = amp(g, "3")["candidates"][0]
     f3 = qpb.primer_spans(1, b)["f"][2]
-    row = f"chr1\t{f3 - 2}\t{f3 - 1}\trsBB\tA\t1\tG,\t0\t1\t0.0002,\tA,\tG,\t0\tsnv\t\t1\t2"
+    rest = "rsBB\tA\t1\tG,\t0\t1\t0.0002,\tA,\tG,\t0\tsnv\t\t1\t2"
     with tempfile.TemporaryDirectory() as td:
-        assert qpb.annotate_rare([g], qpb.bigbed_fetcher(fake_bigbedtobed(td, [row]), "x.bb", log=quiet), quiet)
+        write_bigbed(Path(td) / "d.bb", [("chr1", f3 - 2, f3 - 1, rest), ("chr1", 50, 51, rest.replace("rsBB", "rsFAR"))])
+        assert qpb.annotate_rare([g], qpb.bigbed_fetcher(str(Path(td) / "d.bb"), log=quiet), quiet)
     assert b["f_rare"] == [{"rs": "rsBB", "maf": 0.0002, "pos3": 2}]
     _, g = run("PLUSGENE")
-    assert not qpb.annotate_rare([g], qpb.bigbed_fetcher("/nonexistent/bigBedToBed", "x.bb", log=quiet), quiet)
+    assert not qpb.annotate_rare([g], qpb.bigbed_fetcher("/nonexistent.bb", log=quiet), quiet)
     qpb.finalize_gene(g, qpb.Params())
     a = amp(g, "3")
     assert g["annotated"]["rare_snps"] is False and "f_rare" not in a["pairs"][0]
