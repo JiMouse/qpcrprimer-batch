@@ -62,11 +62,13 @@ const INDEX = {
     tm_min:58, tm_opt:59, tm_max:60, size_min:16, size_opt:20, size_max:30, gc_min:30, gc_max:80,
     max_end_gc:2, max_poly_g:3, max_poly_x:5, max_tm_diff:2, tm_formula:'primer-express',
     snp_maf:0.01, snp_3prime:5, salt_mono:50, salt_div:0, dntp:0, dna_conc:5, num_return:3},
-  ispcr:true, tiers:{}, errors:[{gene:'BROKEN', error:'lookup failed'}],
+  ispcr:true, rare_snps:true, tiers:{}, errors:[{gene:'BROKEN', error:'lookup failed'}],
   genes:[entry(PLUSG), entry(MINUSG), entry(REG1)],
 };
 const FILES = {'data/index.json':INDEX, 'data/genes/PLUSG.json':PLUSG,
                'data/genes/MINUSG.json':MINUSG, 'data/genes/REG1.json':REG1};
+// PLUSG exon 2 (OK) carries rare dbSNP variants under its forward primer
+Object.assign(PLUSG.amplicons[0].pairs[0], {f_rare:[{rs:'rs63750798', maf:8.6e-6, pos3:8}, {rs:'rs777', maf:null, pos3:2}], r_rare:[]});
 
 /* ---- stub DOM + fetch, then run the real page script ---- */
 const els = {};
@@ -134,6 +136,16 @@ ok(!has('class="hot"'), 'nothing is highlighted when every value is inside the r
 ok(has('1 alternative pair'), 'alternatives are offered');
 ok(has('hgPcr?') && has('wp_f=ACGTACGTACGTACGTACGT'), 'UCSC in-silico PCR link carries the pair');
 ok(!has('undefined') && !has('NaN'), 'no undefined or NaN in the exon view');
+
+// rare dbSNP variants: listed under the primer, the amplicon stays OK
+await go('PLUSG/2');
+ok(has('pill ok') && !has('class="warns"'), 'rare variants leave the amplicon OK, with no warning');
+ok(has('class="rare"') && has('rs63750798') && has('8 nt from 3′, max 0.00086 %'),
+   'a rare variant is listed with its distance from the 3′ end and its highest frequency');
+ok(has('rs777') && has('no frequency data'), 'a variant without frequency data says so');
+ok(has('<span class="pf rv">'), 'rare variants are dashed in the amplicon view');
+ok(!has('undefined') && !has('NaN'), 'no undefined or NaN with rare variants');
+ok(els['note'].innerHTML.includes('information only'), 'the method note says rare variants are information only');
 
 await go('PLUSG/3');
 ok(has('pill check'), 'a Check amplicon carries the Check pill');

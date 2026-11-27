@@ -24,6 +24,10 @@ included, so the fast paths are the ones under test). It checks:
 - SNPs: a SNP under the best pair moves the design to another pair; dense SNPs fall back to the
   `snp-5p` tier with no SNP in the last 5 bases and a Check status; `--strict` refuses instead; the
   MAF cut-off; a SNP between the primers is a note, not a warning;
+- rare variants: every dbSNP variant under a primer listed with the right distance from the 3′ end
+  on both strands (an indel counted from its base nearest the 3′ end), a common SNP not listed
+  twice, the design and the status unchanged; the batched bigBedToBed path (rows with or without a
+  header, insertions, windows merged and assigned), and its failure reported as a note, not fatal;
 - repeats avoided, or accepted only in a primer's 5′ part when nothing else fits;
 - segmental-duplication alerts; an off-target in-silico PCR product moves a pair down, and a
   target with no specific pair is Check;
@@ -37,7 +41,7 @@ included, so the fast paths are the ones under test). It checks:
 `node tests/test_page.mjs` runs the whole `<script>` of `site/index.html` against a stubbed DOM and
 a stubbed `fetch` serving synthetic genes and a custom region. It covers the exon chips and their
 status, the assay panel (names, both primers, product Tm, penalty, placement, 3′ G/C, alternatives,
-UCSC link), that warnings are HTML-escaped, the region search — a range inside one exon, over a
+UCSC link, rare variants listed under an OK assay without demoting it), that warnings are HTML-escaped, the region search — a range inside one exon, over a
 whole gene, a point in an intron (the exons either side), a minus-strand gene, a custom region, a
 range outside the build — and that genes on other chromosomes are never fetched, routing of
 symbols, region names and coordinates, and the exports: order rows (`GENE-e<n>-1F`, seven

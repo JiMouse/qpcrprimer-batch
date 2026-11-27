@@ -13,7 +13,9 @@ The workflow it automates is the manual one:
                                           penalty (below)
   4. keep the lowest-penalty pairs     -> ranked on Primer Express's penalty;
                                           a best pair at 100 or more is flagged
-  5. check for SNPs                    -> dbSNP 155 Common masked before design
+  5. check for SNPs                    -> dbSNP 155 Common masked before design;
+                                          every rarer dbSNP 155 variant under
+                                          a primer listed (information only)
   6. check uniqueness (In-Silico PCR)  -> UCSC isPcr genome-wide on every
                                           candidate; segmental duplications
                                           flagged
@@ -60,7 +62,7 @@ from functools import lru_cache
 import primer3
 import requests
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 SERVERS = {
     "GRCh38": "https://rest.ensembl.org",
@@ -69,6 +71,14 @@ SERVERS = {
 UCSC_DB = {"GRCh38": "hg38", "GRCh37": "hg19"}
 UCSC_API = "https://api.genome.ucsc.edu"
 SNP_TRACK, RMSK_TRACK, SEGDUP_TRACK = "dbSnp155Common", "rmsk", "genomicSuperDups"
+# Every dbSNP 155 variant. The rare ones are only listed under the primers of
+# the finished design - never masked, never a reason for Check.
+ALL_SNP_TRACK = "dbSnp155"
+DBSNP_BIGBED = "https://hgdownload.soe.ucsc.edu/gbdb/{db}/snp/dbSnp155.bb"
+# bigDbSnp.as column order, used when bigBedToBed prints no header
+BIGDBSNP_COLS = ["chrom", "chromStart", "chromEnd", "name", "ref", "altCount", "alts", "shiftBases",
+                 "freqSourceCount", "minorAlleleFreq", "majorAllele", "minorAllele", "maxFuncImpact",
+                 "class", "ucscNotes", "_dataOffset", "_dataLen"]
 MANE_TRACK = "mane"
 CHROMS = [str(i) for i in range(1, 23)] + ["X", "Y"]
 COMP = str.maketrans("ACGTNacgtn", "TGCANtgcan")
@@ -272,6 +282,10 @@ class UCSC(_Http):
                         "class": it.get("class", "")})
         return out
 
+    def all_variants(self, chrom, start, end) -> list[dict]:
+        """Every dbSNP 155 variant overlapping chrom:start-end, whatever its frequency."""
+        return [variant_record(it) for it in self.track(ALL_SNP_TRACK, chrom, start, end)]
+
     def repeats(self, chrom, start, end) -> list[dict]:
         return [{"start": int(it["genoStart"]) + 1, "end": int(it["genoEnd"]),
                  "name": it.get("repName", ""), "class": it.get("repClass", "")}
@@ -300,6 +314,84 @@ def max_maf(v) -> float | None:
                 pass
     vals = [x for x in vals if 0 <= x <= 1]
     return max(vals) if vals else None
+
+
+def variant_record(it: dict) -> dict:
+    """A dbSNP item (UCSC API or bigBedToBed row) as {rs, chrom, start, end, maf};
+    1-based inclusive, an insertion placed on the base after it, maf = the
+    highest minor-allele frequency across dbSNP sources, kept to 3 significant
+    digits so a 1-in-100,000 variant does not round to zero."""
+    s0, e0 = int(it["chromStart"]), int(it["chromEnd"])
+    maf = max_maf(it.get("minorAlleleFreq"))
+    return {"rs": it.get("name", ""), "chrom": it.get("chrom", ""), "start": s0 + 1, "end": max(e0, s0 + 1),
+            "maf": None if maf is None else float(f"{maf:.3g}")}
+
+
+def parse_bigbed_variants(lines: list[str]) -> list[dict]:
+    cols, out = BIGDBSNP_COLS, []
+    for line in lines:
+        if line.startswith("#"):
+            cols = line.lstrip("#").split("\t")
+            continue
+        f = line.rstrip("\n").split("\t")
+        if len(f) >= 10:
+            out.append(variant_record(dict(zip(cols, f))))
+    return out
+
+
+def merge_windows(windows) -> list[tuple[str, int, int]]:
+    out = []
+    for c, s, e in sorted(set(windows)):
+        if out and out[-1][0] == c and s <= out[-1][2] + 1:
+            out[-1] = (c, out[-1][1], max(out[-1][2], e))
+        else:
+            out.append((c, s, e))
+    return out
+
+
+def bigbed_variants(exe: str, bigbed: str, windows, udc_dir: str | None = None, log=print) -> list[dict] | None:
+    """Every dbSNP item overlapping any window, in ONE bigBedToBed call: it reads
+    only the blocks of the (remote) bigBed that the windows touch, so a whole
+    chunk of genes costs a few MB instead of one UCSC API request per exon."""
+    merged = merge_windows(windows)
+    if not merged:
+        return []
+    with tempfile.TemporaryDirectory() as td:
+        reg, out = Path(td) / "windows.bed", Path(td) / "variants.bed"
+        reg.write_text("".join(f"{c}\t{s - 1}\t{e}\n" for c, s, e in merged))
+        cmd = [exe, f"-bed={reg}", bigbed, str(out)]
+        if udc_dir:
+            cmd.insert(1, f"-udcDir={udc_dir}")
+        log(f"Listing dbSNP variants under the primers ({len(merged)} windows, bigBedToBed) ...")
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=7200)
+        except (OSError, subprocess.SubprocessError) as ex:
+            log(f"warning: bigBedToBed failed, rare variants not listed ({getattr(ex, 'stderr', '') or ex})")
+            return None
+        return parse_bigbed_variants(out.read_text().splitlines())
+
+
+def assign_to_windows(variants: list[dict], windows) -> dict:
+    """{window: [variants overlapping it]} - bisect on start, so a chunk's
+    hundreds of thousands of variants are not scanned once per window."""
+    from bisect import bisect_left, bisect_right
+    by_chrom: dict[str, list] = {}
+    for v in variants:
+        by_chrom.setdefault(v["chrom"], []).append(v)
+    index = {}
+    for c, vs in by_chrom.items():
+        vs.sort(key=lambda v: v["start"])
+        index[c] = ([v["start"] for v in vs], vs, max(v["end"] - v["start"] for v in vs))
+    out = {}
+    for w in set(windows):
+        c, s, e = w
+        if c not in index:
+            out[w] = []
+            continue
+        starts, vs, longest = index[c]
+        lo, hi = bisect_left(starts, s - longest), bisect_right(starts, e)
+        out[w] = [v for v in vs[lo:hi] if v["end"] >= s]
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -1022,6 +1114,8 @@ def amplicon_notes(g: dict, a: dict) -> list[str]:
     if b["amp_snps"]:
         n.append(f'{len(b["amp_snps"])} common SNP(s) between the primers (not under them): '
                  + ", ".join(s["rs"] for s in b["amp_snps"][:5]))
+    if g["annotated"].get("rare_snps") is False:
+        n.append("Rare dbSNP variants under the primers not listed (dbSNP 155 unavailable)")
     return n
 
 
@@ -1071,6 +1165,85 @@ def apply_ispcr(where: dict, bed_lines: list[str]):
 
 
 # --------------------------------------------------------------------------
+# Rare variants under the primers (information only)
+# --------------------------------------------------------------------------
+def primer_spans(strand: int, b: dict) -> dict:
+    """Genomic (lo, hi, 3'-end base) of each primer of a pair. The pair is
+    designed on the transcript strand: on a minus-strand gene the forward
+    primer is the one at the high genomic end."""
+    s, e, fl, rl = b["start"], b["end"], b["f_len"], b["r_len"]
+    if strand == 1:
+        return {"f": (s, s + fl - 1, s + fl - 1), "r": (e - rl + 1, e, e - rl + 1)}
+    return {"f": (e - fl + 1, e, e - fl + 1), "r": (s, s + rl - 1, s + rl - 1)}
+
+
+def variants_under(span: tuple, variants: list[dict], skip: set) -> list[dict]:
+    """Variants overlapping a primer, with their distance from its 3' end
+    (1 = terminal base; for an indel, its base nearest the 3' end)."""
+    lo, hi, g3 = span
+    out, seen = [], set(skip)
+    for v in variants:
+        a, z = max(v["start"], lo), min(v["end"], hi)
+        if a > z or v["rs"] in seen:
+            continue
+        seen.add(v["rs"])
+        out.append({"rs": v["rs"], "maf": v["maf"], "pos3": min(abs(a - g3), abs(z - g3)) + 1})
+    return sorted(out, key=lambda x: (x["pos3"], x["rs"]))
+
+
+def annotate_rare(results: list[dict], fetch, log=print) -> bool:
+    """List every dbSNP variant under each candidate primer that is not already
+    reported as common (f_rare / r_rare). Status and ranking are untouched:
+    a 1-in-100,000 variant under a primer is no reason to discard a pair.
+    `fetch(windows)` returns {window: [variants]}, a window missing on failure."""
+    jobs = []
+    for g in results:
+        for a in g["amplicons"]:
+            if a["candidates"]:
+                w = (ucsc_chrom(g["chrom"]), min(b["start"] for b in a["candidates"]),
+                     max(b["end"] for b in a["candidates"]))
+                jobs.append((g, a, w))
+    if not jobs:
+        return True
+    found = fetch([w for _, _, w in jobs])
+    for g in results:
+        g["annotated"]["rare_snps"] = True
+    for g, a, w in jobs:
+        vs = found.get(w)
+        if vs is None:
+            g["annotated"]["rare_snps"] = False
+            continue
+        for b in a["candidates"]:
+            sp = primer_spans(g["strand"], b)
+            b["f_rare"] = variants_under(sp["f"], vs, {s["rs"] for s in b["f_snps"]})
+            b["r_rare"] = variants_under(sp["r"], vs, {s["rs"] for s in b["r_snps"]})
+    n = sum(len(b.get("f_rare", [])) + len(b.get("r_rare", []))
+            for _, a, _ in jobs for b in a["candidates"][:1])
+    log(f"Rare variants: {n} listed under the best pairs of {len(jobs)} targets")
+    return any(found.get(w) is not None for _, _, w in jobs)
+
+
+def api_fetcher(ucsc, log=print):
+    """One UCSC API request per target: fine for a few genes, slow for thousands."""
+    def fetch(windows):
+        out = {}
+        for w in set(windows):
+            try:
+                out[w] = ucsc.all_variants(*w)
+            except Exception as ex:
+                log(f"    warning: dbSNP variants not loaded for {w[0]}:{w[1]}-{w[2]} ({ex})")
+        return out
+    return fetch
+
+
+def bigbed_fetcher(exe: str, bigbed: str, udc_dir: str | None = None, log=print):
+    def fetch(windows):
+        vs = bigbed_variants(exe, bigbed, windows, udc_dir, log)
+        return {} if vs is None else assign_to_windows(vs, windows)
+    return fetch
+
+
+# --------------------------------------------------------------------------
 # Output helpers
 # --------------------------------------------------------------------------
 def ucsc_pcr_url(f: str, r: str, assembly: str) -> str:
@@ -1082,6 +1255,24 @@ def ucsc_pcr_url(f: str, r: str, assembly: str) -> str:
 def snp_text(snps: list[dict]) -> str:
     return "; ".join(f'{s["rs"]} ({s["pos3"]} nt from 3\'' + (f', MAF {s["maf"]:.2f})' if s["maf"] is not None else ")")
                      for s in snps)
+
+
+def freq_text(maf) -> str:
+    """Highest frequency across dbSNP sources, as a percentage."""
+    if maf is None:
+        return "no frequency data"
+    x = maf * 100
+    t = f"{x:.2g}"
+    if "e" in t:
+        t = f"{x:.8f}".rstrip("0").rstrip(".")
+    return f"max {t} %"
+
+
+def rare_text(rare) -> str:
+    """'' = checked, nothing found; 'not checked' = the list was never made."""
+    if rare is None:
+        return "not checked"
+    return "; ".join(f'{v["rs"]} ({v["pos3"]} nt from 3\', {freq_text(v["maf"])})' for v in rare)
 
 
 def ispcr_text(ip: dict) -> str:
@@ -1121,11 +1312,13 @@ PRIMER_COLS = ["Gene / region", "Exon", "Status", "Transcript", "RefSeq (MANE)",
                "ΔTm F-R (°C)", "Product (bp)", "Product Tm (°C)", "Penalty (Primer Express)", "Placement",
                "Target bases covered", "Chr", "Amplicon start", "Amplicon end",
                "Design tier", "Common SNPs under F", "Common SNPs under R", "Common SNPs between primers",
+               "Rare SNPs under F (info)", "Rare SNPs under R (info)",
                "Repeat bases F/R", "Segmental duplication", "In-silico PCR", "Warnings", "Notes", "UCSC check"]
 SEQ_COLS = {"Primers": {7, 14}, "Alternatives": {4, 7}, "Amplicons": {5}}
 
 
-def write_excel(results: list[dict], errors: list[dict], p: Params, path: str, assembly: str, ispcr_ran: bool):
+def write_excel(results: list[dict], errors: list[dict], p: Params, path: str, assembly: str, ispcr_ran: bool,
+                rare: bool = False):
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
@@ -1176,7 +1369,7 @@ def write_excel(results: list[dict], errors: list[dict], p: Params, path: str, a
                              16, 30, 6, 9, 11, 7, 9,
                              16, 30, 6, 9, 11, 7, 9,
                              9, 9, 9, 9, 10, 9, 5, 12, 12,
-                             10, 26, 26, 26, 9, 30, 30, 60, 50, 13])
+                             10, 26, 26, 26, 34, 34, 9, 30, 30, 60, 50, 13])
     for g in results:
         for a in g["amplicons"]:
             b = a["pairs"][0]
@@ -1188,6 +1381,7 @@ def write_excel(results: list[dict], errors: list[dict], p: Params, path: str, a
                        a["tier"] + (" (relaxed)" if a["relaxed"] else ""),
                        snp_text(b["f_snps"]), snp_text(b["r_snps"]),
                        ", ".join(s["rs"] for s in b["amp_snps"]),
+                       rare_text(b.get("f_rare")), rare_text(b.get("r_rare")),
                        f'{b["f_repeat"]}/{b["r_repeat"]}' if (b["f_repeat"] or b["r_repeat"]) else "",
                        "; ".join(f'{s["identity"]}% {s["other"]}' for s in a["segdups"][:3]),
                        ispcr_text(b["ispcr"]), "\n".join(a["warnings"]), "\n".join(a["notes"]),
@@ -1202,8 +1396,9 @@ def write_excel(results: list[dict], errors: list[dict], p: Params, path: str, a
     header(ws2, ["Gene / region", "Exon", "Rank", "Forward primer (5'→3')", "F Tm (°C)", "F Tm UCSC (°C)",
                  "Reverse primer (5'→3')", "R Tm (°C)", "R Tm UCSC (°C)", "ΔTm F-R (°C)",
                  "Product (bp)", "Product Tm (°C)", "Penalty (Primer Express)", "Placement", "SNPs F", "SNPs R",
+                 "Rare SNPs F (info)", "Rare SNPs R (info)",
                  "Repeat bases F/R", "In-silico PCR", "Amplicon start", "Amplicon end"],
-           [12, 7, 6, 30, 9, 11, 30, 9, 11, 9, 9, 9, 9, 10, 24, 24, 9, 28, 12, 12])
+           [12, 7, 6, 30, 9, 11, 30, 9, 11, 9, 9, 9, 9, 10, 24, 24, 30, 30, 9, 28, 12, 12])
     for g in results:
         for a in g["amplicons"]:
             for b in a["pairs"]:
@@ -1211,6 +1406,7 @@ def write_excel(results: list[dict], errors: list[dict], p: Params, path: str, a
                             b["r_seq"], b["r_tm"], b["r_tm_ucsc"], b["d_tm"],
                             b["product"], b["product_tm"], b["penalty"], b["placement"],
                             snp_text(b["f_snps"]), snp_text(b["r_snps"]),
+                            rare_text(b.get("f_rare")), rare_text(b.get("r_rare")),
                             f'{b["f_repeat"]}/{b["r_repeat"]}', ispcr_text(b["ispcr"]), b["start"], b["end"]])
     style_rows(ws2, mono_cols=SEQ_COLS["Alternatives"])
     ws2.auto_filter.ref = ws2.dimensions
@@ -1247,7 +1443,7 @@ def write_excel(results: list[dict], errors: list[dict], p: Params, path: str, a
 
     ws6 = wb.create_sheet("Parameters")
     header(ws6, ["Setting", "Value", "Meaning"], [26, 18, 95], freeze="A2")
-    for row in parameter_rows(p, assembly, ispcr_ran):
+    for row in parameter_rows(p, assembly, ispcr_ran, rare):
         ws6.append(row)
     style_rows(ws6)
 
@@ -1293,12 +1489,16 @@ MEANING = {
 }
 
 
-def parameter_rows(p: Params, assembly: str, ispcr_ran: bool) -> list[list]:
+def parameter_rows(p: Params, assembly: str, ispcr_ran: bool, rare: bool = False) -> list[list]:
     rows = [["Assembly", assembly, "Genome build used for coordinates"],
             ["Transcript choice", "MANE Select", "Falls back to Ensembl canonical; overridable in the gene list"],
             ["Repeats", "masked", f"Ensembl soft-masking (RepeatMasker, TRF, Dust) + UCSC {RMSK_TRACK}"],
             ["Homology", "flagged", f"UCSC {SEGDUP_TRACK} overlap; in-silico PCR " +
-             ("run on all candidate pairs (isPcr)" if ispcr_ran else "NOT run - use the UCSC links")]]
+             ("run on all candidate pairs (isPcr)" if ispcr_ran else "NOT run - use the UCSC links")],
+            ["Rare SNPs", "listed" if rare else "not listed",
+             f"Every UCSC {ALL_SNP_TRACK} variant under a primer that is not reported as common, with its distance "
+             "from the 3' end and its highest frequency across dbSNP sources. Information only: it never changes "
+             "the design, the ranking or the status"]]
     rows += [[k, str(v), MEANING.get(k, "Primer3 setting")] for k, v in vars(p).items()]
     rows += [[f"Tier: {k}", "", v] for k, v in TIERS.items()]
     rows += [[f"Placement: {k}", "", v] for k, v in PLACEMENTS.items()]
@@ -1311,7 +1511,7 @@ def parameter_rows(p: Params, assembly: str, ispcr_ran: bool) -> list[list]:
     return rows
 
 
-def write_json(results, errors, p: Params, out_dir: str, assembly: str, ispcr_ran: bool):
+def write_json(results, errors, p: Params, out_dir: str, assembly: str, ispcr_ran: bool, rare: bool = False):
     d = Path(out_dir)
     (d / "genes").mkdir(parents=True, exist_ok=True)
     index = []
@@ -1326,7 +1526,7 @@ def write_json(results, errors, p: Params, out_dir: str, assembly: str, ispcr_ra
                       "amplicons": len(st), "ok": st.count("OK"),
                       "check": st.count("CHECK"), "failures": len(g["failures"])})
     meta = {"assembly": assembly, "ucsc_db": UCSC_DB[assembly], "generated": time.strftime("%Y-%m-%d"),
-            "version": __version__, "params": vars(p), "ispcr": ispcr_ran, "tiers": TIERS,
+            "version": __version__, "params": vars(p), "ispcr": ispcr_ran, "rare_snps": rare, "tiers": TIERS,
             "placements": PLACEMENTS, "genes": index, "errors": errors}
     (d / "index.json").write_text(json.dumps(meta, indent=1))
 
@@ -1387,6 +1587,12 @@ def main(argv=None, ensembl=None, ucsc=None):
     g3.add_argument("--ispcr", help="path to UCSC isPcr executable (genome-wide uniqueness check)")
     g3.add_argument("--genome-2bit", help="genome .2bit for isPcr (hg38.2bit / hg19.2bit)")
     g3.add_argument("--ispcr-max-size", type=int, default=d.ispcr_max_size)
+    g4 = ap.add_argument_group("Rare SNPs under primers (listed, never avoided)")
+    g4.add_argument("--no-rare-snps", action="store_true", help="do not list rare dbSNP variants under primers")
+    g4.add_argument("--bigbedtobed", help="UCSC bigBedToBed executable: one batched read of dbSnp155.bb "
+                                          "instead of one UCSC API request per target (use for large runs)")
+    g4.add_argument("--dbsnp-bigbed", help="dbSnp155.bb path or URL (default: UCSC's, for --assembly)")
+    g4.add_argument("--udc-dir", help="bigBedToBed cache directory for the remote file")
     a = ap.parse_args(argv)
     if not a.genes and not a.regions:
         ap.error("give a gene list, --regions, or both")
@@ -1468,13 +1674,25 @@ def main(argv=None, ensembl=None, ucsc=None):
     ispcr_ran = False
     if a.ispcr:
         ispcr_ran = run_ispcr(results, a.ispcr, a.genome_2bit, p, log)
-        if ispcr_ran:
-            for g in results:
-                finalize_gene(g, p)
 
-    write_excel(results, errors, p, a.out, a.assembly, ispcr_ran)
+    rare_ran = False
+    if not a.no_rare_snps:
+        fetch = None
+        if a.bigbedtobed:
+            fetch = bigbed_fetcher(a.bigbedtobed, a.dbsnp_bigbed or DBSNP_BIGBED.format(db=UCSC_DB[a.assembly]),
+                                   a.udc_dir, log)
+        elif ucsc is not None and not a.no_ucsc:
+            fetch = api_fetcher(ucsc, log)
+        if fetch:
+            rare_ran = annotate_rare(results, fetch, log)
+
+    if ispcr_ran or rare_ran or any(g["annotated"].get("rare_snps") is False for g in results):
+        for g in results:
+            finalize_gene(g, p)
+
+    write_excel(results, errors, p, a.out, a.assembly, ispcr_ran, rare_ran)
     if a.json_dir:
-        write_json(results, errors, p, a.json_dir, a.assembly, ispcr_ran)
+        write_json(results, errors, p, a.json_dir, a.assembly, ispcr_ran, rare_ran)
     amps = [x for g in results for x in g["amplicons"]]
     log(f"Done: {len(results)} genes/regions, {len(amps)} targets with primers "
         f"({sum(x['status'] == 'OK' for x in amps)} OK), "

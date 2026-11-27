@@ -10,7 +10,8 @@ Checks
   * repeats are avoided, or tolerated only in the 5' part and reported;
   * segmental duplications are flagged;
   * an in-silico PCR off-target product demotes a pair;
-  * custom regions parse and design like a one-exon gene.
+  * custom regions parse and design like a one-exon gene;
+  * rare dbSNP variants under the primers are listed, never flagged.
 
 Run:  python tests/test_offline.py   (or python -m pytest tests/)
 """
@@ -68,8 +69,11 @@ class FakeEnsembl:
 
 
 class FakeUCSC:
-    def __init__(self, snps=(), repeats=(), segdups=()):
-        self._s, self._r, self._d = list(snps), list(repeats), list(segdups)
+    def __init__(self, snps=(), repeats=(), segdups=(), variants=()):
+        self._s, self._r, self._d, self._v = list(snps), list(repeats), list(segdups), list(variants)
+
+    def all_variants(self, chrom, start, end):
+        return [v for v in self._v if v["end"] >= start and v["start"] <= end]
 
     def snps(self, chrom, start, end, min_maf):
         return [s for s in self._s if s["end"] >= start and s["start"] <= end and (s["maf"] or 1) >= min_maf]
@@ -375,6 +379,118 @@ def test_snps_between_primers_are_noted_not_flagged():
     assert any("rs999" in n for n in a["notes"])
 
 
+# ---------------------------------------------------------------- rare variants
+def rare(pos, maf=1e-5, rs=None, end=None):
+    return {"rs": rs or f"rs{pos}", "chrom": "chr1", "start": pos, "end": end or pos, "maf": maf}
+
+
+def test_primer_spans_follow_the_strand():
+    for sym in GENES:
+        m, g = run(sym)
+        for a in g["amplicons"]:
+            b = a["pairs"][0]
+            sp = qpb.primer_spans(g["strand"], b)
+            f_lo, f_hi, f3 = sp["f"]
+            r_lo, r_hi, r3 = sp["r"]
+            f, r = genomic(f_lo, f_hi), genomic(r_lo, r_hi)
+            assert (f if m.strand == 1 else rc(f)) == b["f_seq"], sym
+            assert (rc(r) if m.strand == 1 else r) == b["r_seq"], sym
+            # the 3' base of each primer, read on the genome
+            assert genomic(f3, f3) == (b["f_seq"][-1] if m.strand == 1 else rc(b["f_seq"][-1]))
+            assert genomic(r3, r3) == (rc(b["r_seq"][-1]) if m.strand == 1 else b["r_seq"][-1])
+
+
+def test_rare_variants_are_listed_not_flagged():
+    for sym in GENES:
+        _, g0 = run(sym)
+        b0 = amp(g0, "3")["pairs"][0]
+        sp = qpb.primer_spans(g0["strand"], b0)
+        f3, r3 = sp["f"][2], sp["r"][2]
+        step = -1 if g0["strand"] == 1 else 1          # away from the F 3' end, into the primer
+        vs = [rare(f3, 8.6e-6, "rsF1"),                 # terminal base of F
+              rare(f3 + 7 * step, None, "rsF8"),        # 8 nt from the 3' end, no frequency data
+              rare(r3 - 3 * step, 2.6e-4, "rsR4"),      # 4 nt from the R 3' end
+              rare((b0["start"] + b0["end"]) // 2, 1e-4, "rsMID")]   # between the primers: not listed
+        _, g = run(sym)
+        assert qpb.annotate_rare([g], qpb.api_fetcher(FakeUCSC(variants=vs), quiet), quiet)
+        qpb.finalize_gene(g, qpb.Params())
+        a = amp(g, "3")
+        b = a["pairs"][0]
+        assert (b["f_seq"], b["r_seq"]) == (b0["f_seq"], b0["r_seq"]), "rare variants never move the design"
+        assert a["status"] == amp(g0, "3")["status"] and a["warnings"] == amp(g0, "3")["warnings"]
+        assert b["f_rare"] == [{"rs": "rsF1", "maf": 8.6e-6, "pos3": 1}, {"rs": "rsF8", "maf": None, "pos3": 8}], sym
+        assert b["r_rare"] == [{"rs": "rsR4", "maf": 2.6e-4, "pos3": 4}], sym
+        assert g["annotated"]["rare_snps"] is True
+        assert qpb.rare_text(b["f_rare"]) == "rsF1 (1 nt from 3', max 0.00086 %); rsF8 (8 nt from 3', no frequency data)"
+        assert qpb.rare_text([]) == "" and qpb.rare_text(None) == "not checked"
+
+
+def test_common_snp_is_not_listed_again_as_rare():
+    _, g = check_gene("PLUSGENE", ucsc=dense_snps())
+    a = amp(g, "2")
+    b = a["candidates"][0]
+    s = b["f_snps"][0]
+    sp = qpb.primer_spans(1, b)
+    pos = sp["f"][2] - (s["pos3"] - 1)
+    qpb.annotate_rare([g], lambda ws: {w: [rare(pos, 0.05, s["rs"])] for w in ws}, quiet)
+    assert all(v["rs"] != s["rs"] for v in b["f_rare"])
+
+
+def test_an_indel_counts_from_its_base_nearest_the_3prime_end():
+    assert qpb.variants_under((100, 119, 119), [rare(110, end=125, rs="rsDEL")], set()) == \
+        [{"rs": "rsDEL", "maf": 1e-5, "pos3": 1}]
+    assert qpb.variants_under((100, 119, 100), [rare(95, end=104, rs="rsDEL")], set())[0]["pos3"] == 1
+    assert qpb.variants_under((100, 119, 100), [rare(130)], set()) == []
+
+
+def test_bigbed_rows_parse_with_or_without_header():
+    row = "chr16\t16154653\t16154654\trs63750798\tC\t3\tA,G,T,\t0\t3\t-inf,0,8.60052e-06,\tC,C,C,\tA,A,A,\t0\tsnv\tclinvar,\t1\t2"
+    v = qpb.parse_bigbed_variants([row])
+    assert v == [{"rs": "rs63750798", "chrom": "chr16", "start": 16154654, "end": 16154654, "maf": 8.6e-06}]
+    hdr = "#" + "\t".join(qpb.BIGDBSNP_COLS)
+    assert qpb.parse_bigbed_variants([hdr, row]) == v
+    ins = "chr1\t99\t99\trsINS\t\t1\tA,\t0\t0\t\t\t\t0\tins\t\t1\t2"
+    assert qpb.parse_bigbed_variants([ins])[0]["start"] == 100
+
+
+def test_assign_to_windows():
+    vs = [rare(10), rare(50, end=70, rs="rsLONG"), rare(200), dict(rare(60), chrom="chr2")]
+    out = qpb.assign_to_windows(vs, [("chr1", 65, 80), ("chr1", 1, 5), ("chr3", 1, 9)])
+    assert [v["rs"] for v in out[("chr1", 65, 80)]] == ["rsLONG"]
+    assert out[("chr1", 1, 5)] == [] and out[("chr3", 1, 9)] == []
+    assert qpb.merge_windows([("chr1", 10, 20), ("chr1", 15, 30), ("chr1", 40, 50), ("chr2", 1, 2)]) == \
+        [("chr1", 10, 30), ("chr1", 40, 50), ("chr2", 1, 2)]
+
+
+def fake_bigbedtobed(td, rows):
+    fake = Path(td) / "bigBedToBed"
+    fake.write_text(f"""#!{sys.executable}
+import sys
+args = [a for a in sys.argv[1:] if not a.startswith("-")]
+regions = [a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("-bed=")][0]
+assert open(regions).read().strip(), "windows are passed"
+open(args[-1], "w").write({"".join(r + chr(10) for r in rows)!r})
+""")
+    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    return str(fake)
+
+
+def test_bigbed_path_and_failure():
+    _, g = run("PLUSGENE")
+    b = amp(g, "3")["candidates"][0]
+    f3 = qpb.primer_spans(1, b)["f"][2]
+    row = f"chr1\t{f3 - 2}\t{f3 - 1}\trsBB\tA\t1\tG,\t0\t1\t0.0002,\tA,\tG,\t0\tsnv\t\t1\t2"
+    with tempfile.TemporaryDirectory() as td:
+        assert qpb.annotate_rare([g], qpb.bigbed_fetcher(fake_bigbedtobed(td, [row]), "x.bb", log=quiet), quiet)
+    assert b["f_rare"] == [{"rs": "rsBB", "maf": 0.0002, "pos3": 2}]
+    _, g = run("PLUSGENE")
+    assert not qpb.annotate_rare([g], qpb.bigbed_fetcher("/nonexistent/bigBedToBed", "x.bb", log=quiet), quiet)
+    qpb.finalize_gene(g, qpb.Params())
+    a = amp(g, "3")
+    assert g["annotated"]["rare_snps"] is False and "f_rare" not in a["pairs"][0]
+    assert a["status"] == "OK" and any("not listed" in n for n in a["notes"])
+
+
 # ---------------------------------------------------------------- repeats
 def test_repeat_under_best_primer_is_avoided():
     _, g0 = run("PLUSGENE")
@@ -558,6 +674,9 @@ def test_cli_end_to_end():
                        ensembl=FakeEnsembl(), ucsc=FakeUCSC())
         assert rc_ == 0 and Path(f"{td}/site/x.xlsx").exists()
         meta = json.loads(Path(f"{td}/site/data/index.json").read_text())
+        assert meta["rare_snps"] is True
+        j = json.loads(Path(f"{td}/site/data/genes/PLUSGENE.json").read_text())
+        assert all(p["f_rare"] == [] and p["r_rare"] == [] for a in j["amplicons"] for p in a["pairs"])
         assert [x["gene"] for x in meta["genes"]] == ["PLUSGENE", "MINUSGENE", "REG1"]
         assert sorted(e["gene"] for e in meta["errors"]) == ["NOTAGENE", "PLUSGENE"]  # name clash refused
         # regions alone are enough
